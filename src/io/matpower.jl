@@ -55,6 +55,8 @@ const _mp_gen_columns = [
     ("mbase", Float64),
     ("gen_status", Int),
     ("pmax", Float64), ("pmin", Float64),
+    ("GenTech", Int),
+    ("H", Float64),
     ("pc1", Float64),
     ("pc2", Float64),
     ("qc1min", Float64), ("qc1max", Float64),
