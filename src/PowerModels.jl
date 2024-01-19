@@ -1,4 +1,4 @@
-rtmodule PowerModels
+module PowerModels
 
 import LinearAlgebra, SparseArrays
 
