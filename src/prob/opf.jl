@@ -27,11 +27,9 @@ function build_opf(pm::AbstractPowerModel)
     for i in ids(pm, :ref_buses)
         constraint_theta_ref(pm, i)
     end
-    ###### new constraint ######
-    if gen_tech !== nothing && delta_P !== nothing && max_rocof !== nothing
-        for i in ids(pm, :bus)
-            constraint_min_system_inertia(pm, i, gen_tech, delta_P, max_rocof)
-        end
+
+    for i in ids(pm, :bus)
+        constraint_power_balance(pm, i)
     end
 
     for i in ids(pm, :branch)
@@ -90,8 +88,12 @@ function build_opf_H_min(pm::AbstractPowerModel)
         constraint_dcline_power_losses(pm, i)
     end
 
-    for i in ids(pm, :bus)
-        constraint_min_system_inertia(pm, i, gen_tech, delta_P, max_rocof)
+    ###### new constraint ######
+    
+    if gen_tech !== nothing && delta_P !== nothing && max_rocof !== nothing
+        for i in ids(pm, :bus)
+            constraint_min_system_inertia(pm, i, gen_tech, delta_P, max_rocof)
+        end
     end
     
 end
