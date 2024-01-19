@@ -1,7 +1,5 @@
 # The constraints for inertia and reactive power are defined here.
 
-using DataFrames
-
 function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id, gen_tech, delta_P, max_rocof)
   
     # Check if the required columns exist in the DataFrame
