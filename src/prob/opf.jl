@@ -46,10 +46,6 @@ function build_opf(pm::AbstractPowerModel)
         constraint_dcline_power_losses(pm, i)
     end
 
-    # add my_constraints to OPF-Model
-    for i in ids(pm, :bus)
-        my_custom_constraint(pm, i)
-    end
 end
 
 
