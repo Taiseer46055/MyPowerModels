@@ -16,6 +16,8 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id, gen_tech,
     if gen_at_bus == nothing
         error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
+    
+    gen_tech = gen_at_bus[:GenTech]
 
     # Calculate H_min based on delta_P and max_rocof
     H_min = delta_P / max_rocof
