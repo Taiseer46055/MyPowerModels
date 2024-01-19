@@ -27,9 +27,11 @@ function build_opf(pm::AbstractPowerModel)
     for i in ids(pm, :ref_buses)
         constraint_theta_ref(pm, i)
     end
-
-    for i in ids(pm, :bus)
-        constraint_power_balance(pm, i)
+    ###### new constraint ######
+    if gen_tech !== nothing && delta_P !== nothing && max_rocof !== nothing
+        for i in ids(pm, :bus)
+            constraint_min_system_inertia(pm, i, gen_tech, delta_P, max_rocof)
+        end
     end
 
     for i in ids(pm, :branch)
