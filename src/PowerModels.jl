@@ -1,4 +1,4 @@
-module PowerModels
+rtmodule PowerModels
 
 import LinearAlgebra, SparseArrays
 
@@ -8,7 +8,7 @@ import Memento
 import NLsolve
 
 import JuMP
-
+import DataFrames
 import InfrastructureModels
 import InfrastructureModels: optimize_model!, @im_fields, nw_id_default
 const _IM = InfrastructureModels
