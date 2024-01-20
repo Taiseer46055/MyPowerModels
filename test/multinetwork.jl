@@ -1,23 +1,23 @@
 using JuMP
-PMs = PowerModels
-TESTLOG = Memento.getlogger(PowerModels)
+PMs = MyPowerModels
+TESTLOG = Memento.getlogger(MyPowerModels)
 
 @testset "test multinetwork" begin
 
     @testset "idempotent unit transformation" begin
         @testset "5-bus replicate case" begin
             mn_data = build_mn_data("../test/data/matpower/case5_dc.m")
-            PowerModels.make_mixed_units!(mn_data)
-            PowerModels.make_per_unit!(mn_data)
+            MyPowerModels.make_mixed_units!(mn_data)
+            MyPowerModels.make_per_unit!(mn_data)
 
             @test InfrastructureModels.compare_dict(mn_data, build_mn_data("../test/data/matpower/case5_dc.m"))
         end
         @testset "14+24 hybrid case" begin
-            mn_data = PowerModels.parse_files("../test/data/matpower/case14.m", "../test/data/matpower/case24.m")
-            PowerModels.make_mixed_units!(mn_data)
-            PowerModels.make_per_unit!(mn_data)
+            mn_data = MyPowerModels.parse_files("../test/data/matpower/case14.m", "../test/data/matpower/case24.m")
+            MyPowerModels.make_mixed_units!(mn_data)
+            MyPowerModels.make_per_unit!(mn_data)
 
-            @test InfrastructureModels.compare_dict(mn_data, PowerModels.parse_files("../test/data/matpower/case14.m", "../test/data/matpower/case24.m"))
+            @test InfrastructureModels.compare_dict(mn_data, MyPowerModels.parse_files("../test/data/matpower/case14.m", "../test/data/matpower/case24.m"))
         end
     end
 
@@ -25,7 +25,7 @@ TESTLOG = Memento.getlogger(PowerModels)
     @testset "topology processing" begin
         @testset "7-bus replicate status case" begin
             mn_data = build_mn_data("../test/data/matpower/case7_tplgy.m")
-            PowerModels.simplify_network!(mn_data)
+            MyPowerModels.simplify_network!(mn_data)
 
             active_buses = Set(["2", "4", "5", "7"])
             active_branches = Set(["8"])
@@ -59,8 +59,8 @@ TESTLOG = Memento.getlogger(PowerModels)
         end
         @testset "7-bus replicate filer case" begin
             mn_data = build_mn_data("../test/data/matpower/case7_tplgy.m")
-            PowerModels.simplify_network!(mn_data)
-            PowerModels.select_largest_component!(mn_data)
+            MyPowerModels.simplify_network!(mn_data)
+            MyPowerModels.select_largest_component!(mn_data)
 
             active_buses = Set(["4", "5", "7"])
             active_branches = Set(["8"])
@@ -93,9 +93,9 @@ TESTLOG = Memento.getlogger(PowerModels)
             end
         end
         @testset "7+14 hybrid filer case" begin
-            mn_data = PowerModels.parse_files("../test/data/matpower/case7_tplgy.m", "../test/data/matpower/case14.m")
-            PowerModels.simplify_network!(mn_data)
-            PowerModels.select_largest_component!(mn_data)
+            mn_data = MyPowerModels.parse_files("../test/data/matpower/case7_tplgy.m", "../test/data/matpower/case14.m")
+            MyPowerModels.simplify_network!(mn_data)
+            MyPowerModels.select_largest_component!(mn_data)
 
             case7_data = mn_data["nw"]["1"]
             case14_data = mn_data["nw"]["2"]
@@ -111,17 +111,17 @@ TESTLOG = Memento.getlogger(PowerModels)
 
     @testset "test solve_opf with multinetwork data" begin
         mn_data = build_mn_data("../test/data/matpower/case5.m")
-        @test_throws(TESTLOG, ErrorException, PowerModels.solve_opf(mn_data, ACPPowerModel, nlp_solver))
+        @test_throws(TESTLOG, ErrorException, MyPowerModels.solve_opf(mn_data, ACPPowerModel, nlp_solver))
     end
 
     @testset "test solve_mn_opf with single-network data" begin
-        @test_throws(TESTLOG, ErrorException, PowerModels.solve_mn_opf("../test/data/matpower/case5.m", ACPPowerModel, nlp_solver))
+        @test_throws(TESTLOG, ErrorException, MyPowerModels.solve_mn_opf("../test/data/matpower/case5.m", ACPPowerModel, nlp_solver))
     end
 
     @testset "test multi-network solution" begin
         # test case where generator status is 1 but the gen_bus status is 0
         mn_data = build_mn_data("../test/data/matpower/case5.m")
-        result = PowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
+        result = MyPowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
 
         @test result["termination_status"] == LOCALLY_SOLVED
         @test isapprox(result["objective"], 36538.2; atol = 1e0)
@@ -130,7 +130,7 @@ TESTLOG = Memento.getlogger(PowerModels)
     end
 
     @testset "test make_multinetwork" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         data["time_series"] = Dict(
             "num_steps" => 3,
             "load" => Dict(
@@ -141,7 +141,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         )
 
         mn_data = make_multinetwork(data)
-        result = PowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
+        result = MyPowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
 
         @test result["termination_status"] == LOCALLY_SOLVED
         @test isapprox(result["objective"], 57977.3; atol = 1e0)
@@ -154,7 +154,7 @@ TESTLOG = Memento.getlogger(PowerModels)
 
 
         @testset "test dc polar opb" begin
-            result = PowerModels._solve_mn_opb(mn_data, DCPPowerModel, nlp_solver)
+            result = MyPowerModels._solve_mn_opb(mn_data, DCPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 29620.0; atol = 1e0)
@@ -172,7 +172,7 @@ TESTLOG = Memento.getlogger(PowerModels)
 
 
         @testset "test ac polar opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
+            result = MyPowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 35103.8; atol = 1e0)
@@ -189,7 +189,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         end
 
         @testset "test dc polar opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, DCPPowerModel, nlp_solver)
+            result = MyPowerModels.solve_mn_opf(mn_data, DCPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 34959.8; atol = 1e0)
@@ -206,7 +206,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         end
 
         @testset "test soc opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, SOCWRPowerModel, nlp_solver)
+            result = MyPowerModels.solve_mn_opf(mn_data, SOCWRPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 29999.4; atol = 1e0)
@@ -223,7 +223,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         end
 
         @testset "test sdp with constraint decomposition opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, SparseSDPWRMPowerModel, sdp_solver)
+            result = MyPowerModels.solve_mn_opf(mn_data, SparseSDPWRMPowerModel, sdp_solver)
 
             # hits iteration limit in SCS v0.9, sense ALMOST_OPTIMAL
             @test result["termination_status"] == OPTIMAL || result["termination_status"] == ALMOST_OPTIMAL
@@ -242,7 +242,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         end
 
         @testset "test nfa opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, NFAPowerModel, nlp_solver)
+            result = MyPowerModels.solve_mn_opf(mn_data, NFAPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 29620.0; atol = 1e0)
@@ -263,7 +263,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         mn_data = build_mn_data("../test/data/matpower/case5.m")
 
         @testset "test dc polar opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, DCPPowerModel, nlp_solver, setting = Dict("output" => Dict("duals" => true)))
+            result = MyPowerModels.solve_mn_opf(mn_data, DCPPowerModel, nlp_solver, setting = Dict("output" => Dict("duals" => true)))
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 35226.4; atol = 1e0)
@@ -287,24 +287,24 @@ TESTLOG = Memento.getlogger(PowerModels)
 
 
     @testset "hybrid network case - polar" begin
-        mn_data = PowerModels.parse_files("../test/data/matpower/case14.m", "../test/data/matpower/case24.m")
+        mn_data = MyPowerModels.parse_files("../test/data/matpower/case14.m", "../test/data/matpower/case24.m")
 
         @testset "test ac polar opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
+            result = MyPowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 87886.5; atol = 1e0)
         end
 
         @testset "test ac rectangular opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, ACRPowerModel, nlp_solver)
+            result = MyPowerModels.solve_mn_opf(mn_data, ACRPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 87886.5; atol = 1e0)
         end
 
         @testset "test soc opf" begin
-            result = PowerModels.solve_mn_opf(mn_data, SOCWRPowerModel, nlp_solver)
+            result = MyPowerModels.solve_mn_opf(mn_data, SOCWRPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 78765.8; atol = 1e0)
@@ -316,7 +316,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         mn_data = build_mn_data("../test/data/matpower/case5_strg.m", replicates=4)
 
         @testset "test ac polar opf" begin
-            result = PowerModels.solve_mn_opf_strg(mn_data, PowerModels.ACPPowerModel, minlp_solver)
+            result = MyPowerModels.solve_mn_opf_strg(mn_data, MyPowerModels.ACPPowerModel, minlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 70435.5; atol = 1e0)
@@ -345,7 +345,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         end
 
         @testset "test soc opf" begin
-            result = PowerModels.solve_mn_opf_strg(mn_data, PowerModels.SOCWRPowerModel, minlp_solver)
+            result = MyPowerModels.solve_mn_opf_strg(mn_data, MyPowerModels.SOCWRPowerModel, minlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 58853.5; atol = 1e0)
@@ -372,7 +372,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         end
 
         @testset "test soc bf opf" begin
-            result = PowerModels.solve_mn_opf_bf_strg(mn_data, PowerModels.SOCBFPowerModel, minlp_solver)
+            result = MyPowerModels.solve_mn_opf_bf_strg(mn_data, MyPowerModels.SOCBFPowerModel, minlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 58826.36; atol = 1e0)
@@ -399,7 +399,7 @@ TESTLOG = Memento.getlogger(PowerModels)
         end
 
         @testset "test linear bf opf" begin
-            result = PowerModels.solve_mn_opf_bf_strg(mn_data, PowerModels.BFAPowerModel, minlp_solver)
+            result = MyPowerModels.solve_mn_opf_bf_strg(mn_data, MyPowerModels.BFAPowerModel, minlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 57980.0; atol = 1e0)
@@ -440,7 +440,7 @@ TESTLOG = Memento.getlogger(PowerModels)
                 end
             end
 
-            result = PowerModels.solve_mn_opf_strg(mn_data, PowerModels.DCPPowerModel, minlp_solver)
+            result = MyPowerModels.solve_mn_opf_strg(mn_data, MyPowerModels.DCPPowerModel, minlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 69703.10; atol = 1e0)
@@ -457,7 +457,7 @@ TESTLOG = Memento.getlogger(PowerModels)
             mn_data["nw"]["1"]["storage"]["1"]["status"] = 0  # verify that storage activation does not cause error
 
             Memento.setlevel!(TESTLOG, "warn")
-            @test_warn(TESTLOG, "network data should specify time_elapsed, using 1.0 as a default", PowerModels.solve_mn_opf_strg(mn_data, PowerModels.ACPPowerModel, minlp_solver))
+            @test_warn(TESTLOG, "network data should specify time_elapsed, using 1.0 as a default", MyPowerModels.solve_mn_opf_strg(mn_data, MyPowerModels.ACPPowerModel, minlp_solver))
             Memento.setlevel!(TESTLOG, "error")
         end
     end
@@ -466,13 +466,13 @@ TESTLOG = Memento.getlogger(PowerModels)
     @testset "test solution feedback" begin
         mn_data = build_mn_data("../test/data/matpower/case5_asym.m")
 
-        opf_result = PowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
+        opf_result = MyPowerModels.solve_mn_opf(mn_data, ACPPowerModel, nlp_solver)
         @test opf_result["termination_status"] == LOCALLY_SOLVED
         @test isapprox(opf_result["objective"], 35103.8; atol = 1e0)
 
         PowerModels.update_data!(mn_data, opf_result["solution"])
 
-        pf_result = PowerModels._solve_mn_pf(mn_data, ACPPowerModel, nlp_solver)
+        pf_result = MyPowerModels._solve_mn_pf(mn_data, ACPPowerModel, nlp_solver)
         @test pf_result["termination_status"] == LOCALLY_SOLVED
         @test isapprox(pf_result["objective"], 0.0; atol = 1e-3)
 
@@ -504,11 +504,11 @@ TESTLOG = Memento.getlogger(PowerModels)
     @testset "test errors and warnings" begin
         mn_data = build_mn_data("../test/data/matpower/case5.m")
 
-        @test_throws(TESTLOG, ErrorException, PowerModels.correct_voltage_angle_differences!(mn_data))
-        @test_throws(TESTLOG, ErrorException, PowerModels.calc_connected_components(mn_data))
+        @test_throws(TESTLOG, ErrorException, MyPowerModels.correct_voltage_angle_differences!(mn_data))
+        @test_throws(TESTLOG, ErrorException, MyPowerModels.calc_connected_components(mn_data))
 
         Memento.setlevel!(TESTLOG, "warn")
-        @test_nowarn PowerModels.correct_reference_buses!(mn_data)
+        @test_nowarn MyPowerModels.correct_reference_buses!(mn_data)
         Memento.setlevel!(TESTLOG, "error")
     end
 
