@@ -16,7 +16,7 @@ end
 
 @testset "test ac tnep" begin
     @testset "3-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
         calc_thermal_limits!(data)
         result = solve_tnep(data, ACPPowerModel, minlp_solver)
 
@@ -40,7 +40,7 @@ end
 
 @testset "test soc tnep" begin
     @testset "3-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
         calc_thermal_limits!(data)
         result = solve_tnep(data, SOCWRPowerModel, minlp_solver)
 
@@ -65,7 +65,7 @@ end
 # requires a correct implementation of `variable_ne_branch_voltage`
 # @testset "test qc tnep" begin
 #     @testset "3-bus case" begin
-#         data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+#         data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
 #         calc_thermal_limits!(data)
 #         result = solve_tnep(data, QCRMPowerModel, minlp_solver)
 
@@ -89,7 +89,7 @@ end
 
 @testset "test dc tnep" begin
     @testset "3-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
         calc_thermal_limits!(data)
         result = solve_tnep(data, DCPPowerModel, minlp_solver)
 
@@ -126,7 +126,7 @@ end
     #=
     # turn off due to numerical stability across operating systems
     @testset "3-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
         calc_thermal_limits!(data)
         result = solve_tnep(data, DCPLLPowerModel, minlp_solver)
 
@@ -150,7 +150,7 @@ end
 
 @testset "test lpac tnep" begin
     @testset "3-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
         calc_thermal_limits!(data)
         result = solve_tnep(data, LPACCPowerModel, minlp_solver)
 
@@ -173,7 +173,7 @@ end
 
 @testset "test tnep branch flow output" begin
     @testset "3-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
         calc_thermal_limits!(data)
         result = solve_tnep(data, SOCWRPowerModel, minlp_solver)
 
