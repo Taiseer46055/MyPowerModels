@@ -142,7 +142,7 @@ end
         # issue with reaching ITERATION_LIMIT, SCS v2.0, JuMP v1.17
         # @testset "14-bus case" begin
         #     data = build_current_data("../test/data/matpower/case14.m")
-        #     result = PowerModels._solve_opf_cl(data, SDPWRMPowerModel, sdp_solver)
+        #     result = MyPowerModels._solve_opf_cl(data, SDPWRMPowerModel, sdp_solver)
 
         #     @test result["termination_status"] == OPTIMAL || result["termination_status"] == ALMOST_OPTIMAL
         #     @test isapprox(result["objective"], 7505.33; atol = 1e0)
@@ -158,7 +158,7 @@ end
 
     @testset "test ac polar mld" begin
         @testset "5-bus case" begin
-            result = PowerModels._solve_mld("../test/data/matpower/case5.m", ACPPowerModel, nlp_solver)
+            result = MyPowerModels._solve_mld("../test/data/matpower/case5.m", ACPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 10.0; atol = 1e-2)
@@ -168,7 +168,7 @@ end
 
         end
         @testset "14-bus current" begin
-            result = PowerModels._solve_mld("../test/data/matpower/case14.m", ACPPowerModel, nlp_solver)
+            result = MyPowerModels._solve_mld("../test/data/matpower/case14.m", ACPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 3.59; atol = 1e-2)
@@ -969,8 +969,8 @@ end
     @testset "test ac polar opf" begin
         @testset "3-bus case with fixed phase shift / tap" begin
             file = "../test/data/matpower/case3_oltc_pst.m"
-            data = PowerModels.parse_file(file)
-            result = PowerModels.solve_opf(data, ACPPowerModel, nlp_solver)
+            data = MyPowerModels.parse_file(file)
+            result = MyPowerModels.solve_opf(data, ACPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 5820.1; atol = 1e0)
@@ -978,8 +978,8 @@ end
 
         @testset "3-bus case with optimal phase shifting and tap changing" begin
             file = "../test/data/matpower/case3_oltc_pst.m"
-            data = PowerModels.parse_file(file)
-            result = PowerModels._solve_opf_oltc_pst(data, ACPPowerModel, nlp_solver)
+            data = MyPowerModels.parse_file(file)
+            result = MyPowerModels._solve_opf_oltc_pst(data, ACPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 5738.6; atol = 1e0)
@@ -998,14 +998,14 @@ end
 
         @testset "3-bus case with optimal phase shifting and tap changing with equal lb/ub" begin
             file = "../test/data/matpower/case3_oltc_pst.m"
-            data = PowerModels.parse_file(file)
+            data = MyPowerModels.parse_file(file)
             for (i, branch) in data["branch"]
                 branch["ta_min"] = branch["shift"]
                 branch["ta_max"] = branch["shift"]
                 branch["tm_min"] = branch["tap"]
                 branch["tm_max"] = branch["tap"]
             end
-            result = PowerModels._solve_opf_oltc_pst(data, ACPPowerModel, nlp_solver)
+            result = MyPowerModels._solve_opf_oltc_pst(data, ACPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 5820.1; atol = 1e0)
