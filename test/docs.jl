@@ -1,14 +1,14 @@
 
 @testset "code snippets from docs" begin
     @testset "DATA.md - The Network Data Dictionary" begin
-        network_data = PowerModels.parse_file("../test/data/matpower/case14.m")
+        network_data = MyPowerModels.parse_file("../test/data/matpower/case14.m")
 
         @test length(network_data["bus"]) == 14
         @test length(network_data["branch"]) == 20
     end
 
     @testset "README.md - Modifying Network Data" begin
-        network_data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        network_data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
         result = solve_opf(network_data, ACPPowerModel, JuMP.optimizer_with_attributes(Ipopt.Optimizer, "print_level"=>0))
 
@@ -25,7 +25,7 @@
     end
 
     @testset "README.md - JuMP Model Inspection" begin
-        pm = instantiate_model("../test/data/matpower/case3.m", ACPPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case3.m", ACPPowerModel, MyPowerModels.build_opf)
 
         #pretty print the model to the terminal
         #print(pm.model)
