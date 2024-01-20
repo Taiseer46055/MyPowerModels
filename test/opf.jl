@@ -44,7 +44,7 @@
         @test isapprox(result["objective"], 8190.09; atol = 1e0)
     end
     @testset "5-bus with only current limit data" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_clm.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_clm.m")
         calc_thermal_limits!(data)
         result = solve_ac_opf(data, nlp_solver)
 
@@ -84,7 +84,7 @@
         @test isapprox(result["objective"], 79805; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", ACPPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", ACPPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -140,7 +140,7 @@ end
         @test isapprox(result["objective"], 79805; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", ACRPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", ACRPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -192,7 +192,7 @@ end
         @test isapprox(result["objective"], 79804; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", ACTPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", ACTPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -318,7 +318,7 @@ end
     #    @test isapprox(result["objective"], 79804; atol = 1e0)
     #end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", DCPPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", DCPPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -383,7 +383,7 @@ end
         @test isapprox(result["objective"], 61001.2; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", NFAPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", NFAPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -434,7 +434,7 @@ end
         @test isapprox(result["objective"], 82240; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", DCPLLPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", DCPLLPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -484,7 +484,7 @@ end
         @test isapprox(result["objective"], 8082.54; atol = 1e0)
     end
     @testset "5-bus with only current limit data" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_clm.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_clm.m")
         calc_thermal_limits!(data)
         result = solve_opf(data, LPACCPowerModel, nlp_solver)
 
@@ -513,7 +513,7 @@ end
     #    @test isapprox(result["objective"], 79805; atol = 1e0)
     #end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", LPACCPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", LPACCPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -581,7 +581,7 @@ end
         @test isapprox(result["objective"], 70690.7; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", SOCWRPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", SOCWRPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -705,13 +705,13 @@ end
         @test isapprox(result["objective"], 70690.7; atol = 1e0)
     end
     @testset "3-bus case w/ r,x=0 on branch" begin
-        mp_data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        mp_data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
         mp_data["branch"]["1"]["br_r"] = mp_data["branch"]["1"]["br_x"] = 0.0
         result = solve_opf_bf(mp_data, SOCBFPowerModel, nlp_solver)
         @test result["termination_status"] == LOCALLY_SOLVED
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", SOCBFPowerModel, PowerModels.build_opf_bf)
+        pm = instantiate_model("../test/data/matpower/case14.m", SOCBFPowerModel, MyPowerModels.build_opf_bf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -742,7 +742,7 @@ end
         @test isapprox(result["objective"], 3593.0; atol = 1e1)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", SOCBFConicPowerModel, PowerModels.build_opf_bf)
+        pm = instantiate_model("../test/data/matpower/case14.m", SOCBFConicPowerModel, MyPowerModels.build_opf_bf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -755,7 +755,7 @@ end
         @test isapprox(result["objective"], 5638.97; atol = 1e0)
     end
     @testset "5-bus transformer swap case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         result = solve_opf_bf(data, BFAPowerModel, nlp_solver)
 
         @test result["termination_status"] == LOCALLY_SOLVED
@@ -801,13 +801,13 @@ end
     #     @test isapprox(result["objective"], 70690.7; atol = 1e0)
     # end
     @testset "3-bus case w/ r,x=0 on branch" begin
-        mp_data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        mp_data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
         mp_data["branch"]["1"]["br_r"] = mp_data["branch"]["1"]["br_x"] = 0.0
         result = solve_opf_bf(mp_data, BFAPowerModel, nlp_solver)
         @test result["termination_status"] == LOCALLY_SOLVED
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", BFAPowerModel, PowerModels.build_opf_bf)
+        pm = instantiate_model("../test/data/matpower/case14.m", BFAPowerModel, MyPowerModels.build_opf_bf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -858,7 +858,7 @@ end
         @test isapprox(result["objective"], 76599.9; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", QCRMPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", QCRMPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -897,7 +897,7 @@ end
         @test isapprox(result["objective"], 76785.4; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", QCLSPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", QCLSPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -961,7 +961,7 @@ end
         @test isapprox(result["objective"], 11580.5; atol = 1e1)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", SDPWRMPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", SDPWRMPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
@@ -1010,27 +1010,27 @@ end
     #     @test isapprox(result["objective"], 11578.8; atol = 1e0)
     # end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", SparseSDPWRMPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", SparseSDPWRMPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
     @testset "passing in decomposition" begin
         # too slow for unit tests
-        #data = PowerModels.parse_file("../test/data/matpower/case14.m")
-        data = PowerModels.parse_file("../test/data/pti/case5_alc.raw")
-        pm = InfrastructureModels.InitializeInfrastructureModel(SparseSDPWRMPowerModel, data, PowerModels._pm_global_keys, PowerModels.pm_it_sym)
-        PowerModels.ref_add_core!(pm.ref)
+        #data = MyPowerModels.parse_file("../test/data/matpower/case14.m")
+        data = MyPowerModels.parse_file("../test/data/pti/case5_alc.raw")
+        pm = InfrastructureModels.InitializeInfrastructureModel(SparseSDPWRMPowerModel, data, MyPowerModels._pm_global_keys, MyPowerModels.pm_it_sym)
+        MyPowerModels.ref_add_core!(pm.ref)
 
         nw = collect(nw_ids(pm))[1]
 
-        cadj, lookup_index, sigma = PowerModels._chordal_extension(pm, nw)
-        cliques = PowerModels._maximal_cliques(cadj)
+        cadj, lookup_index, sigma = MyPowerModels._chordal_extension(pm, nw)
+        cliques = MyPowerModels._maximal_cliques(cadj)
         lookup_bus_index = Dict((reverse(p) for p = pairs(lookup_index)))
         groups = [[lookup_bus_index[gi] for gi in g] for g in cliques]
-        @test PowerModels._problem_size(groups) == 83
+        @test MyPowerModels._problem_size(groups) == 83
 
-        pm.ext[:SDconstraintDecomposition] = PowerModels._SDconstraintDecomposition(groups, lookup_index, sigma)
+        pm.ext[:SDconstraintDecomposition] = MyPowerModels._SDconstraintDecomposition(groups, lookup_index, sigma)
 
-        PowerModels.build_opf(pm)
+        MyPowerModels.build_opf(pm)
         result = optimize_model!(pm, optimizer=sdp_solver)
 
         @test result["termination_status"] == OPTIMAL
