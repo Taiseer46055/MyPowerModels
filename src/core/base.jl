@@ -14,7 +14,7 @@ end
 
 ""
 function solve_model(file::String, model_type::Type, optimizer, build_method; kwargs...)
-    data = PowerModels.parse_file(file)
+    data = MyPowerModels.parse_file(file)
     return solve_model(data, model_type, optimizer, build_method; kwargs...)
 end
 
@@ -43,7 +43,7 @@ end
 
 ""
 function instantiate_model(file::String, model_type::Type, build_method; kwargs...)
-    data = PowerModels.parse_file(file)
+    data = MyPowerModels.parse_file(file)
     return instantiate_model(data, model_type, build_method; kwargs...)
 end
 
