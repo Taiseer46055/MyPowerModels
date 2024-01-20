@@ -5,9 +5,9 @@
         source_data = parse_file(filename)
 
         file_tmp = "../test/data/tmp." * extension
-        PowerModels.export_file(file_tmp, source_data)
+        MyPowerModels.export_file(file_tmp, source_data)
 
-        destination_data = PowerModels.parse_file(file_tmp)
+        destination_data = MyPowerModels.parse_file(file_tmp)
         rm(file_tmp)
 
         @test true
