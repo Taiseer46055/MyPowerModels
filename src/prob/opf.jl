@@ -51,51 +51,68 @@ end
 
 # This function accepts the same arguments as the standard solve_ac_opf function, but uses your build_my_opf function.
 
+# This function is a custom version of solve_ac_opf with additional parameters for inertia constraints.
 function solve_ac_opf_H_min(file, optimizer, gen_tech, delta_P, max_rocof; kwargs...)
-    return solve_opf(file, ACPPowerModel, optimizer, build_opf_H_min; gen_tech=gen_tech, delta_P=delta_P, max_rocof=max_rocof, kwargs...)
+    
+    # Check if all required parameters are provided.
+    if gen_tech === nothing || delta_P === nothing || max_rocof === nothing
+        error("Missing input parameters: gen_tech, delta_P or max_rocof")
+    end
+    
+    # Call a custom solve_opf function with additional parameters.
+    return solve_opf_inertia(file, ACPPowerModel, optimizer, gen_tech, delta_P, max_rocof; kwargs...)
+end
+
+# Custom solve_opf function that includes inertia constraints.
+
+function solve_opf_inertia(file, model_type::Type, optimizer, gen_tech, delta_P, max_rocof; kwargs...)
+    # Call solve_model with a custom build function that includes inertia constraints.
+    return solve_model(file, model_type, optimizer, build_opf_H_min(gen_tech, delta_P, max_rocof); kwargs...)
 end
 
 # new Function to bild opf with the standardconstraints and my contraints
 
-function build_opf_H_min(pm::AbstractPowerModel)
+# Custom build function for OPF that includes standard constraints and additional inertia constraints.
+function build_opf_H_min(gen_tech, delta_P, max_rocof)
+    # Define a function to build the OPF model.
+    function custom_build_opf(pm::AbstractPowerModel)
+        # Standard OPF constraints
+        variable_bus_voltage(pm)
+        variable_gen_power(pm)
+        variable_branch_power(pm)
+        variable_dcline_power(pm)
 
-    variable_bus_voltage(pm)
-    variable_gen_power(pm)
-    variable_branch_power(pm)
-    variable_dcline_power(pm)
+        objective_min_fuel_and_flow_cost(pm)
 
-    objective_min_fuel_and_flow_cost(pm)
+        constraint_model_voltage(pm)
 
-    constraint_model_voltage(pm)
+        for i in ids(pm, :ref_buses)
+            constraint_theta_ref(pm, i)
+        end
 
-    for i in ids(pm, :ref_buses)
-        constraint_theta_ref(pm, i)
-    end
+        for i in ids(pm, :bus)
+            constraint_power_balance(pm, i)
+        end
 
-    for i in ids(pm, :bus)
-        constraint_power_balance(pm, i)
-    end
+        for i in ids(pm, :branch)
+            constraint_ohms_yt_from(pm, i)
+            constraint_ohms_yt_to(pm, i)
+            constraint_voltage_angle_difference(pm, i)
+            constraint_thermal_limit_from(pm, i)
+            constraint_thermal_limit_to(pm, i)
+        end
 
-    for i in ids(pm, :branch)
-        constraint_ohms_yt_from(pm, i)
-        constraint_ohms_yt_to(pm, i)
-        constraint_voltage_angle_difference(pm, i)
-        constraint_thermal_limit_from(pm, i)
-        constraint_thermal_limit_to(pm, i)
-    end
+        for i in ids(pm, :dcline)
+            constraint_dcline_power_losses(pm, i)
+        end
 
-    for i in ids(pm, :dcline)
-        constraint_dcline_power_losses(pm, i)
-    end
-
-    ###### new constraint ######
-    
-    if gen_tech !== nothing && delta_P !== nothing && max_rocof !== nothing
+        # Add new inertia constraint
         for i in ids(pm, :bus)
             constraint_min_system_inertia(pm, i, gen_tech, delta_P, max_rocof)
         end
     end
-    
+
+    return custom_build_opf
 end
 
 
