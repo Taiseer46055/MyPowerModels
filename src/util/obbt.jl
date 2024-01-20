@@ -63,7 +63,7 @@ Dict{String,Any} with 19 entries:
 * `precision`: number of decimal digits to round the tightened bounds to.
 """
 function solve_obbt_opf!(file::String, optimizer; kwargs...)
-    data = PowerModels.parse_file(file)
+    data = MyPowerModels.parse_file(file)
     return solve_obbt_opf!(data, optimizer; kwargs...)
 end
 
@@ -83,7 +83,7 @@ function solve_obbt_opf!(data::Dict{String,<:Any}, optimizer;
     Memento.info(_LOGGER, "maximum OBBT iterations set to default value of $max_iter")
     Memento.info(_LOGGER, "maximum time limit for OBBT set to default value of $time_limit seconds")
 
-    model_relaxation = instantiate_model(data, model_type, PowerModels.build_opf)
+    model_relaxation = instantiate_model(data, model_type, MyPowerModels.build_opf)
     (_IM.ismultinetwork(model_relaxation, pm_it_sym)) && (Memento.error(_LOGGER, "OBBT is not supported for multi-networks"))
 
     # check for model_type compatability with OBBT
@@ -117,7 +117,7 @@ function solve_obbt_opf!(data::Dict{String,<:Any}, optimizer;
     end
 
 
-    model_bt = instantiate_model(data, model_type, PowerModels.build_opf)
+    model_bt = instantiate_model(data, model_type, MyPowerModels.build_opf)
     (upper_bound_constraint) && (_constraint_obj_bound(model_bt, upper_bound))
 
     stats = Dict{String,Any}()
@@ -319,8 +319,8 @@ function solve_obbt_opf!(data::Dict{String,<:Any}, optimizer;
 
         # populate the modifications, update the data, and rebuild the bound-tightening model
         modifications = _create_modifications(model_bt, vm_lb, vm_ub, td_lb, td_ub)
-        PowerModels.update_data!(data, modifications)
-        model_bt = instantiate_model(data, model_type, PowerModels.build_opf)
+        MyPowerModels.update_data!(data, modifications)
+        model_bt = instantiate_model(data, model_type, MyPowerModels.build_opf)
         (upper_bound_constraint) && (_constraint_obj_bound(model_bt, upper_bound))
         vm = var(model_bt, :vm)
         td = var(model_bt, :td)
@@ -440,12 +440,12 @@ function _constraint_obj_bound(pm::AbstractPowerModel, bound)
         Memento.error(_LOGGER, "Only cost models of type 2 is supported at this time, given cost model type $(model)")
     end
 
-    cost_index = PowerModels.calc_max_cost_index(pm.data)
+    cost_index = MyPowerModels.calc_max_cost_index(pm.data)
     if cost_index > 3
         Memento.error(_LOGGER, "Only quadratic generator cost models are supported at this time, given cost model of order $(cost_index-1)")
     end
 
-    PowerModels.standardize_cost_terms!(pm.data, order=2)
+    MyPowerModels.standardize_cost_terms!(pm.data, order=2)
 
     from_idx = Dict(arc[1] => arc for arc in ref(pm, :arcs_from_dc))
 
