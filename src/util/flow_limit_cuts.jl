@@ -10,7 +10,7 @@ constraint violations
 * `time_limit`: maximum amount of time (sec) for the algorithm.
 """
 function solve_opf_branch_power_cuts(file::String, model_type::Type, optimizer; kwargs...)
-    data = PowerModels.parse_file(file)
+    data = MyPowerModels.parse_file(file)
     return solve_opf_branch_power_cuts!(data, model_type, optimizer; kwargs...)
 end
 
@@ -97,7 +97,7 @@ supporting the PTDF problem specification at this time.
 * `full_inverse`: compute the complete admittance matrix inverse, instead of a branch by branch computation.
 """
 function solve_opf_ptdf_branch_power_cuts(file::String, optimizer; kwargs...)
-    data = PowerModels.parse_file(file)
+    data = MyPowerModels.parse_file(file)
     return solve_opf_ptdf_branch_power_cuts!(data, optimizer; kwargs...)
 end
 
