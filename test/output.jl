@@ -139,11 +139,11 @@ end
 
 @testset "test dual value output" begin
     settings = Dict("output" => Dict("duals" => true))
-    data = PowerModels.parse_file("../test/data/matpower/case14.m")
+    data = MyPowerModels.parse_file("../test/data/matpower/case14.m")
     calc_thermal_limits!(data)
     result = solve_dc_opf(data, nlp_solver, setting = settings)
 
-    PowerModels.make_mixed_units!(result["solution"])
+    MyPowerModels.make_mixed_units!(result["solution"])
     @testset "14 bus - kcl duals" begin
         for (i, bus) in result["solution"]["bus"]
             @test haskey(bus, "lam_kcl_r")
@@ -163,7 +163,7 @@ end
 
     result = solve_dc_opf("../test/data/matpower/case5.m", nlp_solver, setting = settings)
 
-    PowerModels.make_mixed_units!(result["solution"])
+    MyPowerModels.make_mixed_units!(result["solution"])
     @testset "5 bus - kcl duals" begin
         for (i, bus) in result["solution"]["bus"]
             @test bus["lam_kcl_r"] <= -9.00
@@ -282,12 +282,12 @@ end
 @testset "test solution feedback" begin
 
     function solution_feedback(case, ac_opf_obj)
-        data = PowerModels.parse_file(case)
+        data = MyPowerModels.parse_file(case)
         opf_result = solve_ac_opf(data, nlp_solver)
         @test opf_result["termination_status"] == LOCALLY_SOLVED
         @test isapprox(opf_result["objective"], ac_opf_obj; atol = 1e0)
 
-        PowerModels.update_data!(data, opf_result["solution"])
+        MyPowerModels.update_data!(data, opf_result["solution"])
 
         pf_result = solve_ac_pf(data, nlp_solver)
         @test pf_result["termination_status"] == LOCALLY_SOLVED
