@@ -1,7 +1,7 @@
 ### Tests for OPF objective variants ###
 
 @testset "linear objective" begin
-    data = PowerModels.parse_file("data/matpower/case5.m")
+    data = MyPowerModels.parse_file("data/matpower/case5.m")
     data["gen"]["1"]["cost"] = [1400.0, 1.0]
     data["gen"]["4"]["cost"] = [1.0]
     data["gen"]["5"]["cost"] = []
@@ -34,7 +34,7 @@
 end
 
 @testset "quadratic objective" begin
-    data = PowerModels.parse_file("data/matpower/case5.m")
+    data = MyPowerModels.parse_file("data/matpower/case5.m")
     data["gen"]["1"]["cost"] = [1.0, 1400.0, 1.0]
     data["gen"]["4"]["cost"] = [1.0]
     data["gen"]["5"]["cost"] = []
@@ -62,7 +62,7 @@ end
 end
 
 @testset "nlp objective" begin
-    data = PowerModels.parse_file("data/matpower/case5.m")
+    data = MyPowerModels.parse_file("data/matpower/case5.m")
     data["gen"]["1"]["cost"] = []
     data["gen"]["4"]["cost"] = [1.0]
     data["gen"]["5"]["cost"] = [10.0, 100.0, 300.0, 1400.0, 1.0]
@@ -92,7 +92,7 @@ end
 end
 
 @testset "pwl objective" begin
-    data = PowerModels.parse_file("data/matpower/case5_pwlc.m")
+    data = MyPowerModels.parse_file("data/matpower/case5_pwlc.m")
 
     @testset "opf objective" begin
         result = solve_ac_opf(data, nlp_solver)
@@ -112,7 +112,7 @@ end
 
 
 @testset "dcline objectives" begin
-    data = PowerModels.parse_file("data/matpower/case5_dc.m")
+    data = MyPowerModels.parse_file("data/matpower/case5_dc.m")
 
     @testset "nlp objective" begin
         data["dcline"]["1"]["cost"] = [100.0, 300.0, 4000.0, 1.0]
@@ -155,7 +155,7 @@ end
     end
 
     @testset "pwl objective" begin
-        data = PowerModels.parse_file("data/matpower/case5_pwlc.m")
+        data = MyPowerModels.parse_file("data/matpower/case5_pwlc.m")
 
         data["dcline"]["1"]["model"] = 1
         data["dcline"]["1"]["ncost"] = 4
