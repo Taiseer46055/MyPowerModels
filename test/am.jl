@@ -1,6 +1,6 @@
 @testset "admittance matrix computation" begin
     @testset "5-bus case, no ref bus" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         for (i,bus) in data["bus"]
             bus["bus_type"] = 2
         end
@@ -11,7 +11,7 @@
         @test isapprox(LinearAlgebra.det(am.matrix), 7.133429246315739e6 - 1.0156167905437486e7im)
     end
     @testset "5-bus ext case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_ext.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_ext.m")
         am = calc_admittance_matrix(data)
 
         @test isa(am, AdmittanceMatrix{Complex{Float64}})
@@ -19,14 +19,14 @@
         @test isapprox(LinearAlgebra.det(am.matrix), -7.57163005901563e6 + 2.19099590749748e7im)
     end
     @testset "14-bus pti case" begin
-        data = PowerModels.parse_file("../test/data/pti/case14.raw")
+        data = MyPowerModels.parse_file("../test/data/pti/case14.raw")
         am = calc_admittance_matrix(data)
 
         @test SparseArrays.nnz(am.matrix) == 54
         @test isapprox(LinearAlgebra.det(am.matrix), -5.930071424866359e12 - 5.026659473516862e12im)
     end
     @testset "24-bus rts case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case24.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case24.m")
         am = calc_admittance_matrix(data)
 
         @test SparseArrays.nnz(am.matrix) == 92
@@ -37,7 +37,7 @@ end
 
 @testset "susceptance matrix computation" begin
     @testset "5-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         sm = calc_susceptance_matrix(data)
 
         @test isa(sm, AdmittanceMatrix{Float64})
@@ -45,7 +45,7 @@ end
         @test minimum(abs.(LinearAlgebra.eigvals(Matrix(sm.matrix)))) <= 1e-10
     end
     @testset "5-bus ext case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_ext.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_ext.m")
         sm = calc_susceptance_matrix(data)
 
         @test isa(sm, AdmittanceMatrix{Float64})
@@ -53,7 +53,7 @@ end
         @test minimum(abs.(LinearAlgebra.eigvals(Matrix(sm.matrix)))) <= 1e-10
     end
     @testset "14-bus pti case" begin
-        data = PowerModels.parse_file("../test/data/pti/case14.raw")
+        data = MyPowerModels.parse_file("../test/data/pti/case14.raw")
         sm = calc_susceptance_matrix(data)
 
         @test SparseArrays.nnz(sm.matrix) == 54
@@ -61,7 +61,7 @@ end
         #@test isapprox(LinearAlgebra.det(sm.matrix), 0.015385010604145787)
     end
     @testset "24-bus rts case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case24.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case24.m")
         sm = calc_susceptance_matrix(data)
 
         @test SparseArrays.nnz(sm.matrix) == 92
@@ -74,10 +74,10 @@ end
 @testset "injection factor computation" begin
     # degenerate due to no slack bus
     # @testset "3-bus case" begin
-    #    data = PowerModels.parse_file("../test/data/matpower/case3.m")
+    #    data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
     # end
     @testset "5-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         sm = calc_susceptance_matrix(data)
         sm_inv = calc_susceptance_matrix_inv(data)
 
@@ -91,7 +91,7 @@ end
         end
     end
     @testset "5-bus ext case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_ext.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_ext.m")
         sm = calc_susceptance_matrix(data)
         sm_inv = calc_susceptance_matrix_inv(data)
 
@@ -105,7 +105,7 @@ end
         end
     end
     @testset "14-bus pti case" begin
-        data = PowerModels.parse_file("../test/data/pti/case14.raw")
+        data = MyPowerModels.parse_file("../test/data/pti/case14.raw")
         sm = calc_susceptance_matrix(data)
         sm_inv = calc_susceptance_matrix_inv(data)
 
@@ -120,10 +120,10 @@ end
     end
     # solve_dc_pf does not yet support multiple slack buses
     # @testset "6-bus case" begin
-    #     data = PowerModels.parse_file("../test/data/matpower/case6.m")
+    #     data = MyPowerModels.parse_file("../test/data/matpower/case6.m")
     # end
     @testset "24-bus rts case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case24.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case24.m")
         sm = calc_susceptance_matrix(data)
         sm_inv = calc_susceptance_matrix_inv(data)
 
