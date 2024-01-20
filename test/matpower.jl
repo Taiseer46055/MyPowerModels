@@ -7,7 +7,7 @@
     end
 
     @testset "30-bus case matpower data (parse_file)" begin
-        data = PowerModels.parse_file("../test/data/matpower/case30.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case30.m")
         @test isa(JSON.json(data), String)
 
         result = solve_opf(data, ACPPowerModel, nlp_solver)
@@ -17,7 +17,7 @@
     end
 
     @testset "30-bus case matpower data (parse_matpower)" begin
-        data = PowerModels.parse_matpower("../test/data/matpower/case30.m")
+        data = MyPowerModels.parse_matpower("../test/data/matpower/case30.m")
         @test isa(JSON.json(data), String)
 
         result = solve_opf(data, ACPPowerModel, nlp_solver)
@@ -28,7 +28,7 @@
 
     @testset "30-bus case matpower data (parse_matpower; iostream)" begin
         open("../test/data/matpower/case30.m") do f
-            data = PowerModels.parse_matpower(f)
+            data = MyPowerModels.parse_matpower(f)
             @test isa(JSON.json(data), String)
 
             result = solve_opf(data, ACPPowerModel, nlp_solver)
@@ -39,19 +39,19 @@
     end
 
     @testset "14-bus case file with bus names" begin
-        data = PowerModels.parse_file("../test/data/matpower/case14.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case14.m")
         @test data["bus"]["1"]["name"] == "Bus 1     HV"
         @test isa(JSON.json(data), String)
     end
 
     @testset "5-bus case file with pwl cost functions" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_pwlc.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_pwlc.m")
         @test data["gen"]["1"]["model"] == 1
         @test isa(JSON.json(data), String)
     end
 
     @testset "3-bus case file with hvdc lines" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
         @test length(data["dcline"]) > 0
         @test isa(JSON.json(data), String)
     end
@@ -64,7 +64,7 @@
     end
 
     @testset "5-bus source ids" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_strg.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_strg.m")
         @test data["bus"]["1"]["source_id"] == ["bus", 1]
         @test data["gen"]["1"]["source_id"] == ["gen", 1]
         @test data["load"]["1"]["source_id"] == ["bus", 2]
@@ -99,7 +99,7 @@ end
 
 @testset "test matpower extentions parser" begin
     @testset "3-bus extended constants" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
         @test data["const_int"] == 123
         @test data["const_float"] == 4.56
@@ -108,7 +108,7 @@ end
     end
 
     @testset "3-bus extended matrix" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
         @test haskey(data, "areas")
         @test data["areas"]["1"]["col_1"] == 1
@@ -119,7 +119,7 @@ end
     end
 
     @testset "3-bus extended named matrix" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
         @test haskey(data, "areas_named")
         @test data["areas_named"]["1"]["area"] == 4
@@ -130,7 +130,7 @@ end
     end
 
     @testset "3-bus extended predefined matrix" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
         @test haskey(data, "areas_named")
         @test data["branch"]["1"]["rate_i"] == 50.2
@@ -143,7 +143,7 @@ end
     end
 
     @testset "3-bus extended matrix from cell" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
         @test haskey(data, "areas_cells")
         @test data["areas_cells"]["1"]["col_1"] == "Area 1"
@@ -158,7 +158,7 @@ end
     end
 
     @testset "3-bus extended named matrix from cell" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
         @test haskey(data, "areas_named_cells")
         @test data["areas_named_cells"]["1"]["area_name"] == "Area 1"
@@ -175,7 +175,7 @@ end
     end
 
     @testset "3-bus extended predefined matrix from cell" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
         @test haskey(data, "areas_named")
         @test data["branch"]["1"]["name"] == "Branch 1"
@@ -188,7 +188,7 @@ end
     end
 
     @testset "3-bus tnep case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
 
         @test haskey(data, "ne_branch")
         @test data["ne_branch"]["1"]["f_bus"] == 2
@@ -197,10 +197,10 @@ end
     end
 
     @testset "`build_ref` for 3-bus tnep case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case3_tnep.m")
-        ref = PowerModels.build_ref(data)
+        data = MyPowerModels.parse_file("../test/data/matpower/case3_tnep.m")
+        ref = MyPowerModels.build_ref(data)
 
-        @assert !PowerModels.InfrastructureModels.ismultinetwork(data)
+        @assert !MyPowerModels.InfrastructureModels.ismultinetwork(data)
         ref_nw = ref[:it][pm_it_sym][:nw][0]
 
         @test haskey(data, "name")
@@ -215,107 +215,107 @@ end
         source_data = parse_file(filename)
 
         io = PipeBuffer()
-        PowerModels.export_matpower(io, source_data)
-        destination_data = PowerModels.parse_matpower(io)
+        MyPowerModels.export_matpower(io, source_data)
+        destination_data = MyPowerModels.parse_matpower(io)
 
         @test InfrastructureModels.compare_dict(source_data, destination_data)
     end
 
     @testset "test frankenstein_00" begin
         file = "../test/data/matpower/frankenstein_00.m"
-        test_mp_idempotent(file, PowerModels.parse_file)
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_file)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case14" begin
         file = "../test/data/matpower/case14.m"
-        test_mp_idempotent(file, PowerModels.parse_file)
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_file)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case2" begin
         file = "../test/data/matpower/case2.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case24" begin
         file = "../test/data/matpower/case24.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case3_tnep" begin
         file = "../test/data/matpower/case3_tnep.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case30" begin
         file = "../test/data/matpower/case30.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case5 asym" begin
         file = "../test/data/matpower/case5_asym.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case5 gap" begin
         file = "../test/data/matpower/case5_gap.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case5 strg" begin
         file = "../test/data/matpower/case5_strg.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     # currently not idempotent due to pwl function simplification
     #@testset "test case5 pwlc" begin
     #    file = "../test/data/matpower/case5_pwlc.m"
-    #    test_mp_idempotent(file, PowerModels.parse_matpower)
+    #    test_mp_idempotent(file, MyPowerModels.parse_matpower)
     #end
 
     # line reversal, with line charging is not invertable
     #@testset "test case5" begin
     #    file = "../test/data/matpower/case5.m"
-    #    test_mp_idempotent(file, PowerModels.parse_matpower)
+    #    test_mp_idempotent(file, MyPowerModels.parse_matpower)
     #end
 
     @testset "test case6" begin
         file = "../test/data/matpower/case6.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case3" begin
         file = "../test/data/matpower/case3.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case5 dc" begin
         file = "../test/data/matpower/case5_dc.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case5 tnep" begin
         file = "../test/data/matpower/case5_tnep.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 
     @testset "test case7 tplgy" begin
         file = "../test/data/matpower/case7_tplgy.m"
-        test_mp_idempotent(file, PowerModels.parse_matpower)
+        test_mp_idempotent(file, MyPowerModels.parse_matpower)
     end
 end
 
 
 function test_mp_export(filename::AbstractString)
-    source_data = PowerModels.parse_file(filename)
+    source_data = MyPowerModels.parse_file(filename)
     test_mp_export(source_data)
 end
 
 function test_mp_export(data::Dict{String,<:Any})
     io = PipeBuffer()
-    PowerModels.export_matpower(io, data)
-    destination_data = PowerModels.parse_matpower(io)
+    MyPowerModels.export_matpower(io, data)
+    destination_data = MyPowerModels.parse_matpower(io)
     @test true
 end
 
@@ -323,11 +323,11 @@ end
 @testset "test matpower export to file" begin
     file_case = "../test/data/matpower/case5_gap.m"
     file_tmp = "../test/data/tmp.m"
-    case_base = PowerModels.parse_file(file_case)
+    case_base = MyPowerModels.parse_file(file_case)
 
     export_matpower(file_tmp, case_base)
 
-    case_tmp = PowerModels.parse_file(file_tmp)
+    case_tmp = MyPowerModels.parse_file(file_tmp)
     rm(file_tmp)
 
     @test InfrastructureModels.compare_dict(case_base, case_tmp)
@@ -338,7 +338,7 @@ end
     # special string name edge case
     #@testset "test case3" begin
     #    file = "../test/data/pti/case3.raw"
-    #    test_mp_export(file, PowerModels.parse_psse)
+    #    test_mp_export(file, MyPowerModels.parse_psse)
     #end
 
     @testset "test case5" begin
@@ -362,7 +362,7 @@ end
 @testset "test matpower export robustness" begin
 
     @testset "test adhoc data" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_strg.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_strg.m")
 
         data["foo"] = [1.2, 3.4, 5.6]
         data["bar"] = Dict(1 => "a", 2 => "b", 3 => "c")
