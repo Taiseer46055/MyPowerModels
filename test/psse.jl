@@ -1,6 +1,6 @@
-# Tests for data conversion from PSS(R)E to PowerModels data structure
+# Tests for data conversion from PSS(R)E to MyPowerModels data structure
 
-TESTLOG = Memento.getlogger(PowerModels)
+TESTLOG = Memento.getlogger(MyPowerModels)
 
 function set_costs!(data::Dict)
     for (n, gen) in data["gen"]
@@ -23,13 +23,13 @@ end
 @testset "test PSS(R)E parser" begin
     @testset "4-bus frankenstein file" begin
         @testset "AC Model (parse_file)" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/frankenstein_00.raw")
-            data_mp = PowerModels.parse_file("../test/data/matpower/frankenstein_00.m")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/frankenstein_00.raw")
+            data_mp = MyPowerModels.parse_file("../test/data/matpower/frankenstein_00.m")
 
             set_costs!(data_mp)
 
-            result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-            result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+            result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+            result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pti["termination_status"] == LOCALLY_SOLVED
             @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -37,13 +37,13 @@ end
         end
 
         @testset "AC Model (parse_psse)" begin
-            data_pti = PowerModels.parse_psse("../test/data/pti/frankenstein_00.raw")
-            data_mp = PowerModels.parse_file("../test/data/matpower/frankenstein_00.m")
+            data_pti = MyPowerModels.parse_psse("../test/data/pti/frankenstein_00.raw")
+            data_mp = MyPowerModels.parse_file("../test/data/matpower/frankenstein_00.m")
 
             set_costs!(data_mp)
 
-            result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-            result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+            result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+            result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pti["termination_status"] == LOCALLY_SOLVED
             @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -53,13 +53,13 @@ end
         @testset "AC Model (parse_psse; iostream)" begin
             filename = "../test/data/pti/frankenstein_00.raw"
             open(filename) do f
-                data_pti = PowerModels.parse_psse(f)
-                data_mp = PowerModels.parse_file("../test/data/matpower/frankenstein_00.m")
+                data_pti = MyPowerModels.parse_psse(f)
+                data_mp = MyPowerModels.parse_file("../test/data/matpower/frankenstein_00.m")
 
                 set_costs!(data_mp)
 
-                result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-                result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+                result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+                result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
                 @test result_pti["termination_status"] == LOCALLY_SOLVED
                 @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -68,7 +68,7 @@ end
         end
 
         @testset "with two-winding transformer unit conversions" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/frankenstein_00_2.raw")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/frankenstein_00_2.raw")
 
             for (k, v) in data_pti["branch"]
                 if v["transformer"]
@@ -82,12 +82,12 @@ end
                 end
             end
 
-            result_opf = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_opf = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_opf["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result_opf["objective"], 29.4043; atol=1e-4)
 
-            result_pf = PowerModels.solve_pf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_pf = MyPowerModels.solve_pf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             for (bus, vm, va) in zip(["1002", "1005", "1008", "1009"],
                                      [1.0032721, 1.0199983, 1.0203627, 1.03],
@@ -100,13 +100,13 @@ end
 
     @testset "3-bus case file" begin
         @testset "AC Model" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/case3.raw")
-            data_mp = PowerModels.parse_file("../test/data/matpower/case3.m")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/case3.raw")
+            data_mp = MyPowerModels.parse_file("../test/data/matpower/case3.m")
 
             set_costs!(data_mp)
 
-            result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-            result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+            result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+            result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pti["termination_status"] == LOCALLY_SOLVED
             @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -118,13 +118,13 @@ end
 
     @testset "5-bus case file" begin
         @testset "AC Model" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/case5.raw")
-            data_mp = PowerModels.parse_file("../test/data/matpower/case5.m")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/case5.raw")
+            data_mp = MyPowerModels.parse_file("../test/data/matpower/case5.m")
 
             set_costs!(data_mp)
 
-            result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-            result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+            result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+            result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pti["termination_status"] == LOCALLY_SOLVED
             @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -135,16 +135,16 @@ end
 
     @testset "7-bus topology case file" begin
         @testset "AC Model" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/case7_tplgy.raw")
-            data_mp  = PowerModels.parse_file("../test/data/matpower/case7_tplgy.m")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/case7_tplgy.raw")
+            data_mp  = MyPowerModels.parse_file("../test/data/matpower/case7_tplgy.m")
 
-            PowerModels.simplify_network!(data_pti)
-            PowerModels.simplify_network!(data_mp)
+            MyPowerModels.simplify_network!(data_pti)
+            MyPowerModels.simplify_network!(data_mp)
 
             set_costs!(data_mp)
 
-            result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-            result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+            result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+            result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pti["termination_status"] == LOCALLY_SOLVED
             @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -156,13 +156,13 @@ end
 
     @testset "14-bus case file" begin
         @testset "AC Model" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/case14.raw")
-            data_mp = PowerModels.parse_file("../test/data/matpower/case14.m")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/case14.raw")
+            data_mp = MyPowerModels.parse_file("../test/data/matpower/case14.m")
 
             set_costs!(data_mp)
 
-            result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-            result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+            result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+            result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pti["termination_status"] == LOCALLY_SOLVED
             @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -173,13 +173,13 @@ end
 
     @testset "24-bus case file" begin
         @testset "AC Model" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/case24.raw")
-            data_mp = PowerModels.parse_file("../test/data/matpower/case24.m")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/case24.raw")
+            data_mp = MyPowerModels.parse_file("../test/data/matpower/case24.m")
 
             set_costs!(data_mp)
 
-            result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-            result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+            result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+            result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pti["termination_status"] == LOCALLY_SOLVED
             @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -191,13 +191,13 @@ end
 
     @testset "30-bus case file" begin
         @testset "AC Model" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/case30.raw")
-            data_mp = PowerModels.parse_file("../test/data/matpower/case30.m")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/case30.raw")
+            data_mp = MyPowerModels.parse_file("../test/data/matpower/case30.m")
 
             set_costs!(data_mp)
 
-            result_pti = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
-            result_mp  = PowerModels.solve_opf(data_mp, PowerModels.ACPPowerModel, nlp_solver)
+            result_pti = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
+            result_mp  = MyPowerModels.solve_opf(data_mp, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pti["termination_status"] == LOCALLY_SOLVED
             @test result_mp["termination_status"] == LOCALLY_SOLVED
@@ -207,24 +207,24 @@ end
     end
 
     @testset "exception handling" begin
-        dummy_data = PowerModels.parse_file("../test/data/pti/frankenstein_70.raw")
+        dummy_data = MyPowerModels.parse_file("../test/data/pti/frankenstein_70.raw")
 
         @test dummy_data["gen"]["1"]["source_id"] == ["generator", 1001, "1 "]
 
         Memento.setlevel!(TESTLOG, "warn")
 
         @test_warn(TESTLOG, "Could not find bus 1, returning 0 for field vm",
-                   PowerModels._get_bus_value(1, "vm", dummy_data))
+                   MyPowerModels._get_bus_value(1, "vm", dummy_data))
 
         @test_warn(TESTLOG, "The following fields in BUS are missing: NVHI, NVLO, EVHI, EVLO",
-                   PowerModels.parse_file("../test/data/pti/parser_test_i.raw"))
+                   MyPowerModels.parse_file("../test/data/pti/parser_test_i.raw"))
 
         Memento.setlevel!(TESTLOG, "error")
     end
 
     @testset "three-winding transformer" begin
         @testset "without unit conversion" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/three_winding_test.raw")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/three_winding_test.raw")
 
             branch_data = zip(
                 ["4", "5", "6"],
@@ -259,12 +259,12 @@ end
             @test length(data_pti["bus"]) == 8
             @test length(data_pti["branch"]) == 15
 
-            result_opf = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_opf = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_opf["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result_opf["objective"], 10.00027; atol=1e-5)
 
-            result_pf = PowerModels.solve_pf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_pf = MyPowerModels.solve_pf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             bus_data = zip(
                 ["1001", "1002", "1003", "10002", "10003", "10004"],
@@ -279,7 +279,7 @@ end
         end
 
         @testset "with unit conversion" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/three_winding_test_2.raw")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/three_winding_test_2.raw")
 
             branch_data = zip(
                 ["1", "2", "3"],
@@ -303,12 +303,12 @@ end
             end
 
 
-            result_opf = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_opf = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_opf["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result_opf["objective"], 10.0; atol=1e-5)
 
-            result_pf = PowerModels.solve_pf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_pf = MyPowerModels.solve_pf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             for (bus, vm, va) in zip(["1001", "1002", "1003", "10001"], [1.09, 1.0, 1.0, 0.997], [2.304, 0., 6.042244, 2.5901])
                 @test isapprox(result_pf["solution"]["bus"][bus]["vm"], vm; atol=1e-1)
@@ -320,19 +320,19 @@ end
 
     @testset "transformer magnetizing admittance" begin
         @testset "two-winding transformer" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/two_winding_mag_test.raw")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/two_winding_mag_test.raw")
 
             @test length(data_pti["branch"]) == 1
 
             @test isapprox(data_pti["branch"]["1"]["g_fr"], 5e-3; atol=1e-4)
             @test isapprox(data_pti["branch"]["1"]["b_fr"], 6.74e-3; atol=1e-4)
 
-            result_opf = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_opf = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_opf["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result_opf["objective"], 701.637157; atol=1e-5)
 
-            result_pf = PowerModels.solve_pf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_pf = MyPowerModels.solve_pf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pf["termination_status"] == LOCALLY_SOLVED
             @test result_pf["objective"] == 0.0
@@ -344,19 +344,19 @@ end
         end
 
         @testset "three-winding transformer" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/three_winding_mag_test.raw")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/three_winding_mag_test.raw")
 
             @test length(data_pti["branch"]) == 3
 
             @test isapprox(data_pti["branch"]["1"]["g_fr"], 5e-3; atol=1e-4)
             @test isapprox(data_pti["branch"]["1"]["b_fr"], 6.74e-3; atol=1e-4)
 
-            result_opf = PowerModels.solve_opf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_opf = MyPowerModels.solve_opf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_opf["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result_opf["objective"], 10.4001; atol=1e-2)
 
-            result_pf = PowerModels.solve_pf(data_pti, PowerModels.ACPPowerModel, nlp_solver)
+            result_pf = MyPowerModels.solve_pf(data_pti, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result_pf["termination_status"] == LOCALLY_SOLVED
             @test result_pf["objective"] == 0.0
@@ -371,7 +371,7 @@ end
 
     @testset "transformer status" begin
         @testset "two-winding transformers" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/case5.raw")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/case5.raw")
 
             br_off = Set(["8", "9"])
             for (i,branch) in data_pti["branch"]
@@ -384,7 +384,7 @@ end
         end
 
         @testset "three-winding transformers" begin
-            data_pti = PowerModels.parse_file("../test/data/pti/three_winding_test.raw")
+            data_pti = MyPowerModels.parse_file("../test/data/pti/three_winding_test.raw")
 
             br_off = Set(["1", "2", "3", "8", "12", "13"])
             for (i,branch) in data_pti["branch"]
@@ -400,7 +400,7 @@ end
 
     @testset "import all" begin
         @testset "30-bus case" begin
-            data = PowerModels.parse_file("../test/data/pti/case30.raw"; import_all=true)
+            data = MyPowerModels.parse_file("../test/data/pti/case30.raw"; import_all=true)
 
             for (key, n) in zip(["bus", "load", "shunt", "gen", "branch"], [15, 15, 28, 34, 29])
                 for item in values(data[key])
@@ -412,14 +412,14 @@ end
                 end
             end
 
-            result = PowerModels.solve_opf(data, PowerModels.ACPPowerModel, nlp_solver)
+            result = MyPowerModels.solve_opf(data, MyPowerModels.ACPPowerModel, nlp_solver)
 
             @test result["termination_status"] == LOCALLY_SOLVED
             @test isapprox(result["objective"], 297.878089; atol=1e-4)
         end
 
         @testset "frankenstein 70" begin
-            data = PowerModels.parse_file("../test/data/pti/frankenstein_70.raw"; import_all=true)
+            data = MyPowerModels.parse_file("../test/data/pti/frankenstein_70.raw"; import_all=true)
 
             extras = ["zone", "facts control device", "owner", "area interchange", "impedance correction", "multi-terminal dc"]
             for k in extras
@@ -428,7 +428,7 @@ end
         end
 
         @testset "impedance correction keys" begin
-            data = PowerModels.parse_file("../test/data/pti/frankenstein_70.raw"; import_all=true)
+            data = MyPowerModels.parse_file("../test/data/pti/frankenstein_70.raw"; import_all=true)
 
             for (i,icd) in data["impedance correction"]
                 for i in 1:11
@@ -442,7 +442,7 @@ end
         end
 
         @testset "arrays in VSC-HVDC" begin
-            data = PowerModels.parse_file("../test/data/pti/vsc-hvdc_test.raw"; import_all=true)
+            data = MyPowerModels.parse_file("../test/data/pti/vsc-hvdc_test.raw"; import_all=true)
 
             @test length(data["dcline"]["1"]) == 36
             for item in data["dcline"]["1"]["converter buses"]
@@ -453,7 +453,7 @@ end
         end
 
         @testset "three-winding case" begin
-            data = PowerModels.parse_file("../test/data/pti/three_winding_test.raw"; import_all=true)
+            data = MyPowerModels.parse_file("../test/data/pti/three_winding_test.raw"; import_all=true)
 
             for (key, n) in zip(["bus", "load", "shunt", "gen", "branch"], [15, 15, 28, 34, 29])
                 for item in values(data[key])
@@ -474,36 +474,36 @@ end
 
     @testset "dclines" begin
         @testset "two-terminal" begin
-            data = PowerModels.parse_file("../test/data/pti/two-terminal-hvdc_test.raw")
+            data = MyPowerModels.parse_file("../test/data/pti/two-terminal-hvdc_test.raw")
 
             @test length(data["dcline"]) == 1
             @test length(data["dcline"]["1"]) == 26
 
-            opf = PowerModels.solve_opf(data, PowerModels.ACPPowerModel, nlp_solver)
+            opf = MyPowerModels.solve_opf(data, MyPowerModels.ACPPowerModel, nlp_solver)
             @test opf["termination_status"] == LOCALLY_SOLVED
             @test isapprox(opf["objective"], 10.5; atol=1e-3)
 
-            pf = PowerModels.solve_pf(data, PowerModels.ACPPowerModel, nlp_solver)
+            pf = MyPowerModels.solve_pf(data, MyPowerModels.ACPPowerModel, nlp_solver)
             @test pf["termination_status"] == LOCALLY_SOLVED
         end
 
         @testset "voltage source converter" begin
-            data = PowerModels.parse_file("../test/data/pti/vsc-hvdc_test.raw")
+            data = MyPowerModels.parse_file("../test/data/pti/vsc-hvdc_test.raw")
 
             @test length(data["dcline"]) == 1
             @test length(data["dcline"]["1"]) == 26
 
-            opf = PowerModels.solve_opf(data, PowerModels.ACPPowerModel, nlp_solver)
+            opf = MyPowerModels.solve_opf(data, MyPowerModels.ACPPowerModel, nlp_solver)
             @test opf["termination_status"] == LOCALLY_SOLVED
             @test isapprox(opf["objective"], 21.8842; atol=1e-3)
 
-            pf = PowerModels.solve_pf(data, PowerModels.ACPPowerModel, nlp_solver)
+            pf = MyPowerModels.solve_pf(data, MyPowerModels.ACPPowerModel, nlp_solver)
             @test pf["termination_status"] == LOCALLY_SOLVED
         end
     end
 
     @testset "source_id" begin
-        data = PowerModels.parse_file("../test/data/pti/frankenstein_70.raw")
+        data = MyPowerModels.parse_file("../test/data/pti/frankenstein_70.raw")
 
         for key in ["bus", "load", "shunt", "gen", "branch"]
             for v in values(data[key])
@@ -515,7 +515,7 @@ end
     end
 
      @testset "Impedance and Current Load Conversions" begin
-        data = PowerModels.parse_file("../test/data/pti//parser_test_k.raw")
+        data = MyPowerModels.parse_file("../test/data/pti//parser_test_k.raw")
         Vm_load = data["bus"]["103"]["vm"]
         # Test current load only
         @test isapprox(data["load"]["2"]["pd"], 250*Vm_load/data["baseMVA"], atol = 1e-6)
