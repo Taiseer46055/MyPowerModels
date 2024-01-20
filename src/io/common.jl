@@ -2,7 +2,7 @@
     parse_file(file; import_all)
 
 Parses a Matpower .m `file` or PTI (PSS(R)E-v33) .raw `file` into a
-PowerModels data structure. All fields from PTI files will be imported if
+MyPowerModels data structure. All fields from PTI files will be imported if
 `import_all` is true (Default: false).
 """
 function parse_file(file::String; import_all=false, validate=true)
@@ -16,11 +16,11 @@ end
 "Parses the iostream from a file"
 function parse_file(io::IO; import_all=false, validate=true, filetype="json")
     if filetype == "m"
-        pm_data = PowerModels.parse_matpower(io, validate=validate)
+        pm_data = MyPowerModels.parse_matpower(io, validate=validate)
     elseif filetype == "raw"
-        pm_data = PowerModels.parse_psse(io; import_all=import_all, validate=validate)
+        pm_data = MyPowerModels.parse_psse(io; import_all=import_all, validate=validate)
     elseif filetype == "json"
-        pm_data = PowerModels.parse_json(io; validate=validate)
+        pm_data = MyPowerModels.parse_json(io; validate=validate)
     else
         Memento.error(_LOGGER, "Unrecognized filetype: \".$filetype\", Supported extensions are \".raw\", \".m\" and \".json\"")
     end
@@ -42,7 +42,7 @@ function parse_files(filenames::String...)
     names = Array{String, 1}()
 
     for (i, filename) in enumerate(filenames)
-        data = PowerModels.parse_file(filename)
+        data = MyPowerModels.parse_file(filename)
 
         delete!(data, "multinetwork")
         delete!(data, "per_unit")
@@ -60,7 +60,7 @@ end
 """
     export_file(file, data)
 
-Export a PowerModels data structure to the file according of the extension:
+Export a MyPowerModels data structure to the file according of the extension:
     - `.m` : Matpower
     - `.raw` : PTI (PSS(R)E-v33)
     - `.json` : JSON 
@@ -78,9 +78,9 @@ end
 
 function export_file(io::IO, data::Dict{String, Any}; filetype="json")
     if filetype == "m"
-        PowerModels.export_matpower(io, data)
+        MyPowerModels.export_matpower(io, data)
     elseif filetype == "raw"
-        PowerModels.export_pti(io, data)
+        MyPowerModels.export_pti(io, data)
     elseif filetype == "json"
         stringdata = JSON.json(data)
         write(io, stringdata)
@@ -91,7 +91,7 @@ end
 
 
 """
-Runs various data quality checks on a PowerModels data dictionary.
+Runs various data quality checks on a MyPowerModels data dictionary.
 Applies modifications in some cases.  Reports modified component ids.
 """
 function correct_network_data!(data::Dict{String,<:Any})
