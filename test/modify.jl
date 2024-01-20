@@ -2,7 +2,7 @@
 
 @testset "data modification tests" begin
     @testset "30-bus case file incremental" begin
-        data = PowerModels.parse_file("../test/data/matpower/case30.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case30.m")
 
         result = solve_opf(data, ACPPowerModel, nlp_solver)
         @test result["termination_status"] == LOCALLY_SOLVED
@@ -29,7 +29,7 @@
     end
 
     @testset "30-bus case file batch" begin
-        data = PowerModels.parse_file("../test/data/matpower/case30.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case30.m")
 
         data_delta = JSON.parse("
         {
@@ -51,7 +51,7 @@
             }
         }")
 
-        PowerModels.update_data!(data, data_delta)
+        MyPowerModels.update_data!(data, data_delta)
 
         result = solve_opf(data, ACPPowerModel, nlp_solver)
         @test result["termination_status"] == LOCALLY_SOLVED
