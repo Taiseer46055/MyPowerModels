@@ -3,12 +3,12 @@
 "root of the power formulation type hierarchy"
 abstract type AbstractPowerModel <: _IM.AbstractInfrastructureModel end
 
-"a macro for adding the base PowerModels fields to a type definition"
+"a macro for adding the base MyPowerModels fields to a type definition"
 _IM.@def pm_fields begin
     # this must be explicitly qualified, so that it works in downstream
-    # packages that use import PowerModels and this command appears in the
+    # packages that use import MyPowerModels and this command appears in the
     # downstream package's scope
-    PowerModels.@im_fields
+    MyPowerModels.@im_fields
 end
 
 
