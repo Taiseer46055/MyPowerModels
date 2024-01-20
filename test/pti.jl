@@ -1,20 +1,20 @@
 # Test cases for PTI RAW file parser
 
-TESTLOG = Memento.getlogger(PowerModels)
+TESTLOG = Memento.getlogger(MyPowerModels)
 
 @testset "test .raw file parser" begin
     @testset "Check PTI exception handling" begin
         Memento.setlevel!(TESTLOG, "warn")
 
-        @test_nowarn PowerModels.parse_pti("../test/data/pti/parser_test_a.raw")
-        # @test_throws(TESTLOG, ErrorException, PowerModels.parse_pti("../test/data/pti/parser_test_b.raw"))
+        @test_nowarn MyPowerModels.parse_pti("../test/data/pti/parser_test_a.raw")
+        # @test_throws(TESTLOG, ErrorException, MyPowerModels.parse_pti("../test/data/pti/parser_test_b.raw"))
         @test_warn(TESTLOG, "Version 32 of PTI format is unsupported, parser may not function correctly.",
-                   PowerModels.parse_pti("../test/data/pti/parser_test_c.raw"))
+                   MyPowerModels.parse_pti("../test/data/pti/parser_test_c.raw"))
         @test_warn(TESTLOG, "At line 4, new section started with '0', but additional non-comment data is present. Pattern '^\\s*0\\s*[/]*.*' is reserved for section start/end.",
-                    PowerModels.parse_pti("../test/data/pti/parser_test_c.raw"))
-        #@test_throws(TESTLOG, ErrorException, PowerModels.parse_pti("../test/data/pti/parser_test_d.raw"))
-        @test_warn(TESTLOG, "GNE DEVICE parsing is not supported.", PowerModels.parse_pti("../test/data/pti/parser_test_h.raw"))
-        @test_throws(TESTLOG, ErrorException, PowerModels.parse_pti("../test/data/pti/parser_test_j.raw"))
+                    MyPowerModels.parse_pti("../test/data/pti/parser_test_c.raw"))
+        #@test_throws(TESTLOG, ErrorException, MyPowerModels.parse_pti("../test/data/pti/parser_test_d.raw"))
+        @test_warn(TESTLOG, "GNE DEVICE parsing is not supported.", MyPowerModels.parse_pti("../test/data/pti/parser_test_h.raw"))
+        @test_throws(TESTLOG, ErrorException, MyPowerModels.parse_pti("../test/data/pti/parser_test_j.raw"))
 
         Memento.setlevel!(TESTLOG, "error")
     end
@@ -22,14 +22,14 @@ TESTLOG = Memento.getlogger(PowerModels)
     @testset "Check PSSE exception handling" begin
         Memento.setlevel!(TESTLOG, "warn")
 
-        @test_throws(TESTLOG, Exception, PowerModels.parse_psse("../test/data/pti/parser_test_b.raw"))
-        @test_throws(TESTLOG, Exception, PowerModels.parse_psse("../test/data/pti/parser_test_d.raw"))
+        @test_throws(TESTLOG, Exception, MyPowerModels.parse_psse("../test/data/pti/parser_test_b.raw"))
+        @test_throws(TESTLOG, Exception, MyPowerModels.parse_psse("../test/data/pti/parser_test_d.raw"))
 
         Memento.setlevel!(TESTLOG, "error")
     end
 
     @testset "4-bus frankenstein file" begin
-        data_dict = PowerModels.parse_pti("../test/data/pti/frankenstein_00.raw")
+        data_dict = MyPowerModels.parse_pti("../test/data/pti/frankenstein_00.raw")
         @test isa(data_dict, Dict)
 
         @test length(data_dict["CASE IDENTIFICATION"]) == 1
@@ -67,7 +67,7 @@ TESTLOG = Memento.getlogger(PowerModels)
     end
 
     @testset "20-bus frankenstein file (parse_file)" begin
-        data_dict = PowerModels.parse_pti("../test/data/pti/frankenstein_20.raw")
+        data_dict = MyPowerModels.parse_pti("../test/data/pti/frankenstein_20.raw")
         @test isa(data_dict, Dict)
 
         @test length(data_dict["BRANCH"]) == 2
@@ -83,7 +83,7 @@ TESTLOG = Memento.getlogger(PowerModels)
     end
 
     @testset "20-bus frankenstein file (parse_pti)" begin
-        data_dict = PowerModels.parse_pti("../test/data/pti/frankenstein_20.raw")
+        data_dict = MyPowerModels.parse_pti("../test/data/pti/frankenstein_20.raw")
         @test isa(data_dict, Dict)
 
         @test length(data_dict["BRANCH"]) == 2
@@ -100,7 +100,7 @@ TESTLOG = Memento.getlogger(PowerModels)
 
     @testset "20-bus frankenstein file (parse_pti; iostream)" begin
         data_dict = open("../test/data/pti/frankenstein_20.raw") do f
-            PowerModels.parse_pti(f)
+            MyPowerModels.parse_pti(f)
         end
         @test isa(data_dict, Dict)
 
@@ -117,7 +117,7 @@ TESTLOG = Memento.getlogger(PowerModels)
     end
 
     @testset "70-bus frankenstein file" begin
-        data_dict = PowerModels.parse_pti("../test/data/pti/frankenstein_70.raw")
+        data_dict = MyPowerModels.parse_pti("../test/data/pti/frankenstein_70.raw")
         @test isa(data_dict, Dict)
 
         @test length(data_dict["TWO-TERMINAL DC"]) == 1
@@ -157,23 +157,23 @@ TESTLOG = Memento.getlogger(PowerModels)
             @test length(item) == 21
         end
 
-        data_dict = PowerModels.parse_pti("../test/data/pti/parser_test_e.raw")
+        data_dict = MyPowerModels.parse_pti("../test/data/pti/parser_test_e.raw")
         @test length(data_dict["MULTI-TERMINAL DC"][1]) == 10
 
-        data_dict = PowerModels.parse_pti("../test/data/pti/parser_test_f.raw")
+        data_dict = MyPowerModels.parse_pti("../test/data/pti/parser_test_f.raw")
         @test length(data_dict["MULTI-TERMINAL DC"][1]) == 9
 
-        data_dict = PowerModels.parse_pti("../test/data/pti/parser_test_g.raw")
+        data_dict = MyPowerModels.parse_pti("../test/data/pti/parser_test_g.raw")
         @test length(data_dict["MULTI-TERMINAL DC"][1]) == 8
 
     end
 
     @testset "0-bus case file" begin
-        @test_throws(TESTLOG, ErrorException, PowerModels.parse_pti("../test/data/pti/case0.raw"))
+        @test_throws(TESTLOG, ErrorException, MyPowerModels.parse_pti("../test/data/pti/case0.raw"))
     end
 
     @testset "73-bus case file" begin
-        data_dict = PowerModels.parse_pti("../test/data/pti/case73.raw")
+        data_dict = MyPowerModels.parse_pti("../test/data/pti/case73.raw")
         @test isa(data_dict, Dict)
 
         @test length(data_dict["BUS"]) == 73
@@ -212,7 +212,7 @@ TESTLOG = Memento.getlogger(PowerModels)
     end
 
     @testset "reserved characters in comments" begin
-        pti = PowerModels.parse_pti("../test/data/pti/parser_test_a.raw")
+        pti = MyPowerModels.parse_pti("../test/data/pti/parser_test_a.raw")
         @test pti["CASE IDENTIFICATION"][1]["Comment_Line_1"] == "0"
         @test pti["CASE IDENTIFICATION"][1]["Comment_Line_2"] == "Q"
         @test length(pti["BUS"]) == 2
@@ -241,7 +241,7 @@ TESTLOG = Memento.getlogger(PowerModels)
                                  "FACTS CONTROL DEVICE" => [Dict{String,Any}("NAME" => "FACTS", "I" => 1, "J" => 0, "MODE" => 1, "PDES" => 0.0, "QDES" => 0.0, "VSET" => 1.0, "SHMX" => 9999.0, "TRMX" => 9999.0, "VTMN" => 0.9, "VTMX" => 1.1, "VSMX" => 1.0, "IMX" => 0.0, "LINX" => 0.05, "RMPCT" => 100.0, "OWNER" => 1, "SET1" => 0.0, "SET2" => 0.0, "VSREF" => 0, "REMOT" => 0, "MNAME" => "")],
                                  "SWITCHED SHUNT" => [Dict{String,Any}("I" => 1, "MODSW" => 1, "ADJM" => 0, "STAT" => 1, "VSWHI" => 1.0, "VSWLO" => 1.0, "SWREM" => 0, "RMPCT" => 100.0, "RMIDNT" => "", "BINIT" => 0.0, "N1" => 0.0, "B1" => 0.0, "N2" => 0.0, "B2" => 0.0, "N3" => 0.0, "B3" => 0.0, "N4" => 0.0, "B4" => 0.0, "N5" => 0.0, "B5" => 0.0, "N6" => 0.0, "B6" => 0.0, "N7" => 0.0, "B7" => 0.0, "N8" => 0.0, "B8" => 0.0)])
 
-        parsed_pti = PowerModels.parse_pti("../test/data/pti/parser_test_defaults.raw")
+        parsed_pti = MyPowerModels.parse_pti("../test/data/pti/parser_test_defaults.raw")
 
         # @test parsed_pti == pti
     end
@@ -251,12 +251,12 @@ end
 @testset "test idempotent pti export" begin
 
     function test_pti_idempotent(filename::AbstractString; kwargs...)
-        source_data = PowerModels.parse_file(filename; kwargs...)
+        source_data = MyPowerModels.parse_file(filename; kwargs...)
 
         io = PipeBuffer()
-        PowerModels.export_pti(io, source_data)
+        MyPowerModels.export_pti(io, source_data)
 
-        destination_data = PowerModels.parse_psse(io; kwargs...)
+        destination_data = MyPowerModels.parse_psse(io; kwargs...)
 
         delete!(source_data, "name")
 
@@ -344,12 +344,12 @@ end
 
     function compare_pf(filename::String)
         source_data = parse_file(filename)
-        source_solution = PowerModels.solve_pf(source_data, ACPPowerModel, nlp_solver)["solution"]
+        source_solution = MyPowerModels.solve_pf(source_data, ACPPowerModel, nlp_solver)["solution"]
         
         file_tmp = "../test/data/tmp.raw"
-        PowerModels.export_pti(file_tmp, source_data)
+        MyPowerModels.export_pti(file_tmp, source_data)
         destination_data = parse_file(file_tmp)
-        destination_solution = PowerModels.solve_pf(destination_data, ACPPowerModel, nlp_solver)["solution"]
+        destination_solution = MyPowerModels.solve_pf(destination_data, ACPPowerModel, nlp_solver)["solution"]
         rm(file_tmp)
         
         @test InfrastructureModels.compare_dict(source_solution, destination_solution)
@@ -374,9 +374,9 @@ end
         source_data = parse_file(filename, import_all=true)
 
         file_tmp = "../test/data/tmp.raw"
-        PowerModels.export_pti(file_tmp, source_data)
+        MyPowerModels.export_pti(file_tmp, source_data)
 
-        destination_data = PowerModels.parse_file(file_tmp, import_all=true)
+        destination_data = MyPowerModels.parse_file(file_tmp, import_all=true)
         rm(file_tmp)
 
         # Delete "name" key
