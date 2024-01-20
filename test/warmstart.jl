@@ -39,10 +39,10 @@ end
 
 @testset "dc warm starts" begin
     @testset "5 bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         result = solve_dc_opf(data, nlp_solver)
 
-        PowerModels.update_data!(data, result["solution"])
+        MyPowerModels.update_data!(data, result["solution"])
 
         # 14 iterations
         result = solve_dc_opf(data, nlp_solver);
@@ -54,10 +54,10 @@ end
     end
 
     @testset "5 bus pwl case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_pwlc.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_pwlc.m")
         result = solve_dc_opf(data, nlp_solver)
 
-        PowerModels.update_data!(data, result["solution"])
+        MyPowerModels.update_data!(data, result["solution"])
 
         # 35 iterations
         result = solve_dc_opf(data, nlp_solver);
@@ -72,10 +72,10 @@ end
 
 @testset "ac warm starts" begin
     @testset "5 bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         result = solve_ac_opf(data, nlp_solver)
 
-        PowerModels.update_data!(data, result["solution"])
+        MyPowerModels.update_data!(data, result["solution"])
 
         # 22 iterations
         result = solve_ac_opf(data, nlp_solver);
@@ -87,10 +87,10 @@ end
     end
 
     @testset "5 bus pwl case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_pwlc.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_pwlc.m")
         result = solve_ac_opf(data, nlp_solver)
 
-        PowerModels.update_data!(data, result["solution"])
+        MyPowerModels.update_data!(data, result["solution"])
 
         # 40 iterations
         result = solve_ac_opf(data, nlp_solver);
