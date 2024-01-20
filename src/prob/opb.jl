@@ -29,6 +29,6 @@ end
 
 ""
 function _ref_add_connected_components!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any})
-    component_sets = PowerModels.calc_connected_components(data)
+    component_sets = MyPowerModels.calc_connected_components(data)
     ref[:components] = Dict(i => c for (i,c) in enumerate(sort(collect(component_sets); by = length)))
 end
