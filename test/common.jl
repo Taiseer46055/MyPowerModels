@@ -1,7 +1,7 @@
 
 function build_mn_data(base_data; replicates::Int=2)
-    mp_data = PowerModels.parse_file(base_data)
-    return PowerModels.replicate(mp_data, replicates)
+    mp_data = MyPowerModels.parse_file(base_data)
+    return MyPowerModels.replicate(mp_data, replicates)
 end
 
 "checks that no bounds are in Inf"
