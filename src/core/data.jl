@@ -1,7 +1,7 @@
-# tools for working with a PowerModels data dict structure
+# tools for working with a MyPowerModels data dict structure
 import LinearAlgebra: pinv
 
-"PowerModels wrapper for the InfrastructureModels `apply!` function."
+"MyPowerModels wrapper for the InfrastructureModels `apply!` function."
 function apply_pm!(func!::Function, data::Dict{String, <:Any}; apply_to_subnetworks::Bool = true)
     _IM.apply!(func!, data, pm_it_name; apply_to_subnetworks = apply_to_subnetworks)
 end
