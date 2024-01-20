@@ -1,7 +1,7 @@
 @testset "test native dc pf solver" begin
     # degenerate due to no slack bus
     # @testset "3-bus case" begin
-    #     data = PowerModels.parse_file("../test/data/matpower/case3.m")
+    #     data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
     #     result = solve_dc_pf(data, nlp_solver)
     #     native = compute_dc_pf(data)
 
@@ -12,7 +12,7 @@
     #     end
     # end
     @testset "5-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         result = solve_dc_pf(data, nlp_solver)
         native = compute_dc_pf(data)
 
@@ -29,7 +29,7 @@
         end
     end
     @testset "5-bus asymmetric case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_asym.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_asym.m")
         result = solve_dc_pf(data, nlp_solver)
         native = compute_dc_pf(data)
 
@@ -40,7 +40,7 @@
         end
     end
     @testset "5-bus multiple slack gens case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_ext.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_ext.m")
         result = solve_dc_pf(data, nlp_solver)
         native = compute_dc_pf(data)
 
@@ -54,7 +54,7 @@
     end
     # compute_dc_pf does not yet support multiple slack buses
     # @testset "6-bus case" begin
-    #     data = PowerModels.parse_file("../test/data/matpower/case6.m")
+    #     data = MyPowerModels.parse_file("../test/data/matpower/case6.m")
     #     result = solve_dc_pf(data, nlp_solver)
     #     native = compute_dc_pf(data)
 
@@ -65,7 +65,7 @@
     #     end
     # end
     @testset "24-bus rts case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case24.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case24.m")
         result = solve_dc_pf(data, nlp_solver)
         native = compute_dc_pf(data)
 
@@ -83,7 +83,7 @@ end
 @testset "test native ac pf solver" begin
     # requires dc line support in ac solver
     # @testset "3-bus case" begin
-    #     data = PowerModels.parse_file("../test/data/matpower/case3.m")
+    #     data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
     #     result = solve_dc_pf(data, nlp_solver)
     #     native = compute_dc_pf(data)
 
@@ -104,7 +104,7 @@ end
     #     end
     # end
     @testset "5-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         result = solve_ac_pf(data, nlp_solver)
         native = compute_ac_pf(data)
 
@@ -131,7 +131,7 @@ end
         end
     end
     @testset "5-bus asymmetric case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_asym.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_asym.m")
         result = solve_ac_pf(data, nlp_solver)
         native = compute_ac_pf(data)
 
@@ -153,7 +153,7 @@ end
         end
     end
     @testset "5-bus multiple slack gens case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_ext.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_ext.m")
         result = solve_ac_pf(data, nlp_solver)
         native = compute_ac_pf(data)
 
@@ -179,7 +179,7 @@ end
 
     # compute_ac_pf does not yet support multiple slack buses
     # @testset "6-bus case" begin
-    #     data = PowerModels.parse_file("../test/data/matpower/case6.m")
+    #     data = MyPowerModels.parse_file("../test/data/matpower/case6.m")
     #     result = solve_ac_pf(data, nlp_solver)
     #     native = compute_ac_pf(data)
 
@@ -200,7 +200,7 @@ end
     #     end
     # end
     @testset "14-bus case, vm fixed non-1.0 value" begin
-        data = PowerModels.parse_file("../test/data/matpower/case14.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case14.m")
         result = solve_ac_pf(data, nlp_solver)
         native = compute_ac_pf(data)
 
@@ -222,7 +222,7 @@ end
         end
     end
     @testset "24-bus rts case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case24.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case24.m")
         result = solve_ac_pf(data, nlp_solver)
         native = compute_ac_pf(data)
 
@@ -250,7 +250,7 @@ end
 @testset "test native ac pf solver, in-place" begin
     # requires dc line support in ac solver
     # @testset "3-bus case" begin
-    #     data = PowerModels.parse_file("../test/data/matpower/case3.m")
+    #     data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
     #     native = compute_ac_pf(data)
     #     compute_ac_pf!(data)
 
@@ -266,7 +266,7 @@ end
     #     end
     # end
     @testset "5-bus case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         native = compute_ac_pf(data)
         compute_ac_pf!(data)
 
@@ -282,7 +282,7 @@ end
         end
     end
     @testset "5-bus asymmetric case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_asym.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_asym.m")
         native = compute_ac_pf(data)
         compute_ac_pf!(data)
 
@@ -298,7 +298,7 @@ end
         end
     end
     @testset "5-bus non-zero slack va case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5_ext.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5_ext.m")
         native = compute_ac_pf(data)
         compute_ac_pf!(data)
 
@@ -315,7 +315,7 @@ end
     end
     # compute_ac_pf does not yet support multiple slack buses
     # @testset "6-bus case" begin
-    #     data = PowerModels.parse_file("../test/data/matpower/case6.m")
+    #     data = MyPowerModels.parse_file("../test/data/matpower/case6.m")
     #     native = compute_ac_pf(data)
     #     compute_ac_pf!(data)
 
@@ -331,7 +331,7 @@ end
     #     end
     # end
     @testset "14-bus case, vm fixed non-1.0 value" begin
-        data = PowerModels.parse_file("../test/data/matpower/case14.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case14.m")
         native = compute_ac_pf(data)
         compute_ac_pf!(data)
 
@@ -347,7 +347,7 @@ end
         end
     end
     @testset "24-bus rts case" begin
-        data = PowerModels.parse_file("../test/data/matpower/case24.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case24.m")
         native = compute_ac_pf(data)
         compute_ac_pf!(data)
 
@@ -369,7 +369,7 @@ end
     @testset "24-bus rts case, jump warm-start" begin
         # TODO extract number of iterations and test there is a reduction
         # Ipopt log can be used for manual verification, for now
-        data = PowerModels.parse_file("../test/data/matpower/case24.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case24.m")
         result = solve_ac_pf(data, nlp_solver)
         #result = solve_ac_pf(data, JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6))
         @test result["termination_status"] == LOCALLY_SOLVED
@@ -399,7 +399,7 @@ end
     @testset "24-bus rts case, native warm-start" begin
         # TODO extract number of iterations and test there is a reduction
         # show_trace can be used for manual verification, for now
-        data = PowerModels.parse_file("../test/data/matpower/case24.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case24.m")
         solution = compute_ac_pf(data)
         #solution = compute_ac_pf(data, show_trace=true)
         @test length(solution) >= 3
@@ -430,7 +430,7 @@ end
 
 @testset "test native ac pf solver options" begin
     @testset "5-bus case, finite_differencing" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         result = solve_ac_pf(data, nlp_solver)
         native = compute_ac_pf("../test/data/matpower/case5.m", finite_differencing=true)
 
@@ -452,7 +452,7 @@ end
         end
     end
     @testset "5-bus case, flat_start" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         result = solve_ac_pf(data, nlp_solver)
         native = compute_ac_pf("../test/data/matpower/case5.m", flat_start=true)
 
@@ -474,7 +474,7 @@ end
         end
     end
     @testset "5-bus case, in-place and nsolve method parameter" begin
-        data = PowerModels.parse_file("../test/data/matpower/case5.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case5.m")
         native = compute_ac_pf("../test/data/matpower/case5.m", method=:newton)
         compute_ac_pf!(data, method=:newton)
 
