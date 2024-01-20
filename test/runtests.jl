@@ -1,10 +1,10 @@
-using PowerModels
+using MyPowerModels
 import InfrastructureModels
 import Memento
 
 # Suppress warnings during testing.
 Memento.setlevel!(Memento.getlogger(InfrastructureModels), "error")
-PowerModels.logger_config!("error")
+MyPowerModels.logger_config!("error")
 
 import HiGHS
 import Ipopt
@@ -29,7 +29,7 @@ sdp_solver = JuMP.optimizer_with_attributes(SCS.Optimizer, "verbose"=>false)
 
 include("common.jl")
 
-@testset "PowerModels" begin
+@testset "MyPowerModels" begin
 
     include("matpower.jl")
 
