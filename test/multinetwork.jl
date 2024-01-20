@@ -470,7 +470,7 @@ TESTLOG = Memento.getlogger(MyPowerModels)
         @test opf_result["termination_status"] == LOCALLY_SOLVED
         @test isapprox(opf_result["objective"], 35103.8; atol = 1e0)
 
-        PowerModels.update_data!(mn_data, opf_result["solution"])
+        MyPowerModels.update_data!(mn_data, opf_result["solution"])
 
         pf_result = MyPowerModels._solve_mn_pf(mn_data, ACPPowerModel, nlp_solver)
         @test pf_result["termination_status"] == LOCALLY_SOLVED
