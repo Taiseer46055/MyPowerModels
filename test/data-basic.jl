@@ -4,7 +4,7 @@
 @testset "test basic network transformation" begin
 
     @testset "7-bus with inactive components" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case7_tplgy.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case7_tplgy.m"))
 
         @test length(data["bus"]) == 4
         @test length(data["load"]) == 2
@@ -20,7 +20,7 @@
     end
 
     @testset "5-bus with switches components" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5_sw.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5_sw.m"))
 
         @test length(data["bus"]) == 4
         @test length(data["load"]) == 3
@@ -41,7 +41,7 @@ end
 @testset "test basic network functions" begin
 
     @testset "basic bus injection" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case14.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case14.m"))
 
         result = solve_opf(data, DCPPowerModel, nlp_solver)
         update_data!(data, result["solution"])
@@ -60,7 +60,7 @@ end
     end
 
     @testset "basic incidence matrix" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5_sw.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5_sw.m"))
 
         I = calc_basic_incidence_matrix(data)
 
@@ -71,7 +71,7 @@ end
     end
 
     @testset "basic admittance matrix" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5_sw.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5_sw.m"))
 
         AM = calc_basic_admittance_matrix(data)
 
@@ -81,7 +81,7 @@ end
     end
 
     @testset "basic branch series impedance and susceptance matrix" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5_sw.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5_sw.m"))
 
         bz = calc_basic_branch_series_impedance(data)
         A = calc_basic_incidence_matrix(data)
@@ -107,7 +107,7 @@ end
     end
 
     @testset "basic bus voltage and branch power matrix" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5_sw.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5_sw.m"))
 
         va = angle.(calc_basic_bus_voltage(data))
 
@@ -135,7 +135,7 @@ end
     end
 
     @testset "basic dc power flow" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5_sw.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5_sw.m"))
         solution = compute_dc_pf(data)["solution"]
 
         va = compute_basic_dc_pf(data)
@@ -146,7 +146,7 @@ end
     end
 
     @testset "basic ptdf matrix" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5_sw.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5_sw.m"))
 
         P = calc_basic_ptdf_matrix(data)
 
@@ -179,7 +179,7 @@ end
     end
 
     @testset "basic ptdf columns" begin
-        data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5_sw.m"))
+        data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5_sw.m"))
 
         P = calc_basic_ptdf_matrix(data)
 
@@ -191,7 +191,7 @@ end
 
     @testset "test basic jacobian" begin
         @testset "5-bus-case" begin
-            data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case5.m"))
+            data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case5.m"))
             for (i, bus) in data["bus"] # All buses PQ
                 bus["bus_type"] = 1
             end
@@ -211,7 +211,7 @@ end
         end
         
         @testset "24-bus-case" begin
-            data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case24.m"))
+            data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case24.m"))
             J = calc_basic_jacobian_matrix(data)
             
             num_bus = length(data["bus"])
@@ -248,7 +248,7 @@ end
 
     @testset "basic ac power flow" begin
         @testset "9-bus-case" begin     
-            data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case9.m"))
+            data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case9.m"))
             solution = compute_ac_pf(data)["solution"]
 
             compute_basic_ac_pf!(data)
@@ -265,7 +265,7 @@ end
         end
 
         @testset "14-bus-case" begin     
-            data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case14.m"))
+            data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case14.m"))
             solution = compute_ac_pf(data)["solution"]
 
             compute_basic_ac_pf!(data)
@@ -282,7 +282,7 @@ end
         end
         
         @testset "24-bus-case" begin     
-            data = make_basic_network(PowerModels.parse_file("../test/data/matpower/case24.m"))
+            data = make_basic_network(MyPowerModels.parse_file("../test/data/matpower/case24.m"))
             solution = compute_ac_pf(data)["solution"]
             
             compute_basic_ac_pf!(data)
