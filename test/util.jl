@@ -43,7 +43,7 @@ end
 
     @testset "3-bus linear case" begin
         # tests with linear objective function
-        data = PowerModels.parse_file("../test/data/matpower/case3.m")
+        data = MyPowerModels.parse_file("../test/data/matpower/case3.m")
         data["gen"]["1"]["cost"] = data["gen"]["1"]["cost"][2:3]
         data["gen"]["2"]["cost"] = data["gen"]["2"]["cost"][2:3]
 
