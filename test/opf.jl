@@ -246,7 +246,7 @@ end
         @test isapprox(result["objective"], 79804; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-       pm = instantiate_model("../test/data/matpower/case14.m", IVRPowerModel, PowerModels.build_opf_iv)
+       pm = instantiate_model("../test/data/matpower/case14.m", IVRPowerModel, MyPowerModels.build_opf_iv)
        @test check_variable_bounds(pm.model)
    end
 end
@@ -650,7 +650,7 @@ end
         @test isapprox(result["objective"], 70683.5; atol = 1e0)
     end
     @testset "14-bus variable bounds" begin
-        pm = instantiate_model("../test/data/matpower/case14.m", SOCWRConicPowerModel, PowerModels.build_opf)
+        pm = instantiate_model("../test/data/matpower/case14.m", SOCWRConicPowerModel, MyPowerModels.build_opf)
         @test check_variable_bounds(pm.model)
     end
 end
