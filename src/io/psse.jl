@@ -804,7 +804,7 @@ end
     _pti_to_powermodels!(pti_data)
 
 Converts PSS(R)E-style data parsed from a PTI raw file, passed by `pti_data`
-into a format suitable for use internally in PowerModels. Imports all remaining
+into a format suitable for use internally in MyPowerModels. Imports all remaining
 data from the PTI file if `import_all` is true (Default: false).
 """
 function _pti_to_powermodels!(pti_data::Dict; import_all=false, validate=true)::Dict
