@@ -2,8 +2,8 @@
 
 function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_tech::Int, delta_P::Float64, max_rocof::Float64)
     println("Adding minimum system inertia constraint")
-    gen_data = pm[:gen]
-    bus_data = pm[:bus]
+    gen_data = ref(pm, :gen)
+    bus_data = ref(pm, :bus)
     
     # Chek if the busnumber exist
     if !haskey(bus_data, bus_id)
