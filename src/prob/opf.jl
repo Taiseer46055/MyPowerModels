@@ -52,7 +52,7 @@ end
 # This function accepts the same arguments as the standard solve_ac_opf function, but uses your build_my_opf function.
 
 # This function is a custom version of solve_ac_opf with additional parameters for inertia constraints.
-function solve_ac_opf_H_min(file, optimizer, gen_tech, delta_P, max_rocof; kwargs...)
+function solve_ac_opf_H_min(file, optimizer, bus_id, gen_tech, delta_P, max_rocof; kwargs...)
     
     # Check if all required parameters are provided.
     if gen_tech === nothing || delta_P === nothing || max_rocof === nothing
@@ -60,22 +60,22 @@ function solve_ac_opf_H_min(file, optimizer, gen_tech, delta_P, max_rocof; kwarg
     end
     
     # Call a custom solve_opf function with additional parameters.
-    return solve_opf_inertia(file, ACPPowerModel, optimizer, gen_tech, delta_P, max_rocof; kwargs...)
+    return solve_opf_inertia(file, ACPPowerModel, optimizer, bus_id, gen_tech, delta_P, max_rocof; kwargs...)
 end
 
 # Custom solve_opf function that includes inertia constraints.
 
-function solve_opf_inertia(file, model_type::Type, optimizer, gen_tech, delta_P, max_rocof; kwargs...)
+function solve_opf_inertia(file, model_type::Type, optimizer, bus_id, gen_tech, delta_P, max_rocof; kwargs...)
     # Call solve_model with a custom build function that includes inertia constraints.
-    return solve_model(file, model_type, optimizer, build_opf_H_min(gen_tech, delta_P, max_rocof); kwargs...)
+    return solve_model(file, model_type, optimizer, build_opf_H_min(bus_id, gen_tech, delta_P, max_rocof); kwargs...)
 end
 
 # new Function to bild opf with the standardconstraints and my contraints
 
 # Custom build function for OPF that includes standard constraints and additional inertia constraints.
-function build_opf_H_min(gen_tech, delta_P, max_rocof)
+function build_opf_H_min(bus_id, gen_tech, delta_P, max_rocof)
     # Define a function to build the OPF model.
-    function custom_build_opf(pm::AbstractPowerModel)
+    function build_my_opf(pm::AbstractPowerModel)
         # Standard OPF constraints
         variable_bus_voltage(pm)
         variable_gen_power(pm)
@@ -107,12 +107,10 @@ function build_opf_H_min(gen_tech, delta_P, max_rocof)
         end
 
         # Add new inertia constraint
-        for i in ids(pm, :bus)
-            constraint_min_system_inertia(pm, i, gen_tech, delta_P, max_rocof)
-        end
+        constraint_min_system_inertia(pm, bus_id, gen_tech, delta_P, max_rocof)
     end
 
-    return custom_build_opf
+    return build_my_opf
 end
 
 
