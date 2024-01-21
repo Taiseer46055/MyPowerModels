@@ -1,7 +1,7 @@
 # The constraints for inertia and reactive power are defined here.
 
 function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_tech::Int, delta_P::Float64, max_rocof::Float64)
-    println("Adding minimum system inertia constraint")
+    println("Add minimum system inertia constraint")
     gen_data = ref(pm, :gen)
     bus_data = ref(pm, :bus)
     
