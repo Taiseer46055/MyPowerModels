@@ -1,5 +1,5 @@
 function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_tech::Int, delta_P::Float64, max_rocof::Float64)
-    println("Add minimum system inertia constraint")
+    println("Adding minimum system inertia constraint")
     
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
@@ -14,8 +14,15 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
         error("Bus number $bus_id does not exist in the network")
     end
 
-    # Find the specified generator at the given bus
-    gen_at_bus = findfirst((_, gen) -> string(gen["gen_bus"]) == string(bus_id) && string(gen["GenTech"]) == string(gen_tech), gen_data)
+    # Manual search for the specific generator
+    gen_at_bus = nothing
+    for gen in values(gen_data)
+        if string(gen["gen_bus"]) == string(bus_id) && string(gen["GenTech"]) == string(gen_tech)
+            gen_at_bus = gen
+            break
+        end
+    end
+
     if gen_at_bus === nothing
         error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
@@ -26,7 +33,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     # Calculate the system inertia (H_sys)
     H_sys = 0.0
     total_Pg = 0.0
-    for (gen_id, gen) in gen_data
+    for (_, gen) in gen_data
         # Only consider active generators
         δ = gen["Pg"] > 0 ? 1 : 0
         H_sys += gen["H"] * gen["Pg"] * δ
