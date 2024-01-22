@@ -1,5 +1,5 @@
 function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_tech::Int, delta_P::Float64, max_rocof::Float64)
-    println("Add minimum system inertia constraint")
+    println("Adding minimum system inertia constraint")
     
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
