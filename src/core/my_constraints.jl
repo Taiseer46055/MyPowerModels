@@ -15,7 +15,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     end
 
     # Check if each generator data has the required keys
-    required_keys = [:gen_bus, :GenTech, :Pg, :H]
+    required_keys = ["gen_bus", "GenTech", "pg", "H"]
     for (gen_id, gen) in gen_data
         for key in required_keys
             if !haskey(gen, key)
