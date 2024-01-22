@@ -19,12 +19,10 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     for (gen_id, gen) in gen_data
         if string(gen["gen_bus"]) == string(bus_id) && string(gen["GenTech"]) == string(gen_tech)
             if haskey(gen, "Pg")
-                gen["Pg"] -= delta_P
-            else
-                error("Key 'Pg' not found in generator with ID $gen_id")
+                gen_at_bus = gen
+                gen_at_bus["Pg"] -= delta_P
+                break
             end
-            gen_at_bus = gen
-            break
         end
     end
 
