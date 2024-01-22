@@ -14,16 +14,12 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
         error("Bus number $bus_id does not exist in the network")
     end
 
-    # Check if each generator data has the required keys
-    required_keys = ["gen_bus", "GenTech", "pg", "H"]
-    for (gen_id, gen) in gen_data
-        for key in required_keys
-            if !haskey(gen, key)
-                error("Required key $key not found in Generator with ID $gen_id")
-            end
-        end
+    # Find the specified generator at the given bus
+    gen_at_bus = findfirst(gen -> string(gen["gen_bus"]) == string(bus_id) && string(gen["GenTech"]) == string(gen_tech), gen_data)
+    if gen_at_bus == nothing
+        error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
-
+    
     # Find the specified generator at the given bus
     gen_at_bus = findfirst(gen -> gen[:gen_bus] == bus_id && gen[:GenTech] == gen_tech, gen_data)
     if gen_at_bus == nothing
