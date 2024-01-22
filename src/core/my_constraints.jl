@@ -26,13 +26,27 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     if gen_at_bus === nothing
         error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
-    
+
+    # Change the generator output if necessary
+    gen_at_bus["Pg"] -= delta_P
+
     # Calculate the minimum system inertia (H_min) based on delta_P and max_rocof
     H_min = delta_P / max_rocof
 
     # Calculate the system inertia (H_sys)
     H_sys = 0.0
     total_Pg = 0.0
+    for (_, gen) in gen_data
+        # Only consider active generators
+        δ = gen["Pg"] > 0 ? 1 : 0
+        H_sys += gen["H"] * gen["Pg"] * δ
+        total_Pg += gen["Pg"] * δ
+    end
+    H_sys /= total_Pg
+    
+    # Add the inertia constraint to the model
+    JuMP.@constraint(pm.model, H_sys >= H_min)
+end
     for (_, gen) in gen_data
         # Only consider active generators
         δ = gen["Pg"] > 0 ? 1 : 0
