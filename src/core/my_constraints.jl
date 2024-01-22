@@ -9,12 +9,17 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     end
 
     # Check if required keys exist in the dictionary
-    required_keys = [:gen_bus, :GenTech, :Pg, :H]
-    for key in required_keys
-        if !haskey(gen_data, key)
-            error("Required key $key not found in Generator Dictionary")
+    for gen in values(gen_data)
+        println("1")
+        for key in required_keys
+            println("2")
+            if !haskey(gen, key)
+                println("3")
+                error("Required key $key not found in Generator with ID $(gen[:index])")
+            end
         end
     end
+
 
     # Find the specified generator at the given bus
     gen_at_bus = findfirst(gen -> gen[:gen_bus] == bus_id && gen[:GenTech] == gen_tech, values(gen_data))
