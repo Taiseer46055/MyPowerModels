@@ -1,37 +1,31 @@
 function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_tech::Int, delta_P::Float64, max_rocof::Float64)
     println("Adding minimum system inertia constraint")
-
+    
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
     bus_data = ref(pm, :bus)
 
-    # Debug: Output the retrieved generator and bus data
+    # Debugging: Output the content of gen_data and bus_data
     println("Generator data: ", gen_data)
     println("Bus data: ", bus_data)
 
-    # Check if the bus number exists in the network
+    # Check if the bus number exists
     if !haskey(bus_data, bus_id)
         error("Bus number $bus_id does not exist in the network")
     end
 
-    # Check if each generator has the required keys
+    # Check if each generator data has the required keys
     required_keys = [:gen_bus, :GenTech, :Pg, :H]
-    for gen in values(gen_data)
+    for (gen_id, gen) in gen_data
         for key in required_keys
             if !haskey(gen, key)
-                # Use generator index as an identifier if available
-                gen_id = haskey(gen, :index) ? gen[:index] : "unknown"
-                println("Missing key $key in Generator with ID $gen_id")
+                error("Required key $key not found in Generator with ID $gen_id")
             end
         end
     end
 
     # Find the specified generator at the given bus
-    gen_at_bus = findfirst(gen -> gen[2][:gen_bus] == bus_id && gen[2][:GenTech] == gen_tech, gen_data)
-    # Debug: Output the found generator
-    println("Generator at bus: ", gen_at_bus)
-
-    # Error handling if no generator is found
+    gen_at_bus = findfirst(gen -> gen[:gen_bus] == bus_id && gen[:GenTech] == gen_tech, gen_data)
     if gen_at_bus == nothing
         error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
