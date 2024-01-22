@@ -26,6 +26,13 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     if gen_at_bus === nothing
         error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
+    
+    # check small large letters
+    if haskey(gen, "Pg")
+        pg = gen["Pg"]
+    else
+        error("Key 'Pg' not found in generator with ID $(gen["index"])")
+    end
 
     # Change the generator output if necessary
     gen_at_bus["Pg"] -= delta_P
