@@ -27,7 +27,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     end
 
     # Find the specified generator at the given bus
-    gen_at_bus = findfirst(gen -> gen[:gen_bus] == bus_id && gen[:GenTech] == gen_tech, values(gen_data))
+    gen_at_bus = findfirst(gen -> gen[2][:gen_bus] == bus_id && gen[2][:GenTech] == gen_tech, gen_data)
     # Debug: Output the found generator
     println("Generator at bus: ", gen_at_bus)
 
