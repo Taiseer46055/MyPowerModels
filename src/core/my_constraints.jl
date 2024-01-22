@@ -1,26 +1,25 @@
 function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_tech::Int, delta_P::Float64, max_rocof::Float64)
     println("Add minimum system inertia constraint")
-    
+
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
-    bus_data = ref(pm, :bus)
 
     # Check if the bus number exists
-    if !haskey(bus_data, bus_id)
+    if !haskey(ref(pm, :bus), bus_id)
         error("Bus number $bus_id does not exist in the network")
     end
 
-    # Check if each generator data has the required keys
+    # Check if each generator data has the required keys and correct data types
     required_keys = [:gen_bus, :GenTech, :Pg, :H]
     for gen in values(gen_data)
-        println("1")
         for key in required_keys
-            println("2")
             if !haskey(gen, key)
-                println("3")
-                # Use an alternative method to identify the generator
-                gen_id = haskey(gen, :id) ? gen[:id] : "unknown"
-                error("Required key $key not found in Generator with ID $gen_id")
+                error("Required key $key not found in generator data")
+            end
+            if key == :Pg || key == :H
+                if !isa(gen[key], Number) || gen[key] < 0
+                    error("Invalid value for $key in generator data")
+                end
             end
         end
     end
