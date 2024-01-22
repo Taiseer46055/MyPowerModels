@@ -13,12 +13,19 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     if !haskey(bus_data, bus_id)
         error("Bus number $bus_id does not exist in the network")
     end
-
+    
     # Manual search for the specific generator
+    pg = 0.0
     gen_at_bus = nothing
     for gen in values(gen_data)
         if string(gen["gen_bus"]) == string(bus_id) && string(gen["GenTech"]) == string(gen_tech)
             gen_at_bus = gen
+            # Überprüfen Sie, ob der Schlüssel "Pg" existiert und weisen Sie den Wert zu
+            if haskey(gen, "Pg")
+                pg = gen["Pg"]
+            else
+                error("Key 'Pg' not found in generator with ID $(gen["index"])")
+            end
             break
         end
     end
@@ -27,12 +34,6 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
         error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
     
-    # check small large letters
-    if haskey(gen, "Pg")
-        pg = gen["Pg"]
-    else
-        error("Key 'Pg' not found in generator with ID $(gen["index"])")
-    end
 
     # Change the generator output if necessary
     gen_at_bus["Pg"] -= delta_P
