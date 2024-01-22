@@ -58,9 +58,10 @@ function solve_ac_opf_H_min(file, optimizer, bus_id, gen_tech, delta_P, max_roco
     if gen_tech === nothing || delta_P === nothing || max_rocof === nothing
         error("Missing input parameters: gen_tech, delta_P or max_rocof")
     end
-    
+    println("4")
     # Call a custom solve_opf function with additional parameters.
     return solve_opf_inertia(file, ACPPowerModel, optimizer, bus_id, gen_tech, delta_P, max_rocof; kwargs...)
+    println("5")
 end
 
 # Custom solve_opf function that includes inertia constraints.
@@ -68,6 +69,7 @@ end
 function solve_opf_inertia(file, model_type::Type, optimizer, bus_id, gen_tech, delta_P, max_rocof; kwargs...)
     # Call solve_model with a custom build function that includes inertia constraints.
     return solve_model(file, model_type, optimizer, build_opf_H_min(bus_id, gen_tech, delta_P, max_rocof); kwargs...)
+    println("6")
 end
 
 # new Function to bild opf with the standardconstraints and my contraints
@@ -105,9 +107,10 @@ function build_opf_H_min(bus_id, gen_tech, delta_P, max_rocof)
         for i in ids(pm, :dcline)
             constraint_dcline_power_losses(pm, i)
         end
-
+        println("7")
         # Add new inertia constraint
         constraint_min_system_inertia(pm, bus_id, gen_tech, delta_P, max_rocof)
+        println("8")
     end
 
     return build_my_opf
