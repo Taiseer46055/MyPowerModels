@@ -17,11 +17,14 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     # Search for the specific generator
     gen_at_bus = nothing
     for (gen_id, gen) in gen_data
+        println("Überprüfe Generator $gen_id am Bus $(gen["gen_bus"]) mit GenTech $(gen["GenTech"])")
         if string(gen["gen_bus"]) == string(bus_id) && string(gen["GenTech"]) == string(gen_tech)
             if haskey(gen, "Pg")
                 gen_at_bus = gen
                 gen_at_bus["Pg"] -= delta_P
                 break
+            else
+                error("Key 'Pg' not found in generator with ID $gen_id")
             end
         end
     end
@@ -45,3 +48,4 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     # Add the inertia constraint to the model
     JuMP.@constraint(pm.model, H_sys >= H_min)
 end
+
