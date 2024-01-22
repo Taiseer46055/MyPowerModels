@@ -9,6 +9,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     end
 
     # Check if required keys exist in the dictionary
+    required_keys = [:gen_bus, :GenTech, :Pg, :H]
     for gen in values(gen_data)
         println("1")
         for key in required_keys
