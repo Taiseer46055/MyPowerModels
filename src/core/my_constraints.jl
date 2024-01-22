@@ -47,14 +47,3 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     # Add the inertia constraint to the model
     JuMP.@constraint(pm.model, H_sys >= H_min)
 end
-    for (_, gen) in gen_data
-        # Only consider active generators
-        δ = gen["Pg"] > 0 ? 1 : 0
-        H_sys += gen["H"] * gen["Pg"] * δ
-        total_Pg += gen["Pg"] * δ
-    end
-    H_sys /= total_Pg
-    
-    # Add the inertia constraint to the model
-    JuMP.@constraint(pm.model, H_sys >= H_min)
-end
