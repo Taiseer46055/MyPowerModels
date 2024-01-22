@@ -1,5 +1,7 @@
 function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_tech::Int, delta_P::Float64, max_rocof::Float64)
     println("Add minimum system inertia constraint")
+    
+    # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
     bus_data = ref(pm, :bus)
 
@@ -8,7 +10,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
         error("Bus number $bus_id does not exist in the network")
     end
 
-    # Check if required keys exist in the dictionary
+    # Check if each generator data has the required keys
     required_keys = [:gen_bus, :GenTech, :Pg, :H]
     for gen in values(gen_data)
         println("1")
@@ -16,15 +18,15 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
             println("2")
             if !haskey(gen, key)
                 println("3")
-                error("Required key $key not found in Generator with ID $(gen[:index])")
+                # Use an alternative method to identify the generator
+                gen_id = haskey(gen, :id) ? gen[:id] : "unknown"
+                error("Required key $key not found in Generator with ID $gen_id")
             end
         end
     end
 
-
     # Find the specified generator at the given bus
     gen_at_bus = findfirst(gen -> gen[:gen_bus] == bus_id && gen[:GenTech] == gen_tech, values(gen_data))
-
     if gen_at_bus == nothing
         error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
@@ -33,8 +35,8 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     H_min = delta_P / max_rocof
 
     # Calculate H_sys
-    H_sys = 0
-    total_Pg = 0
+    H_sys = 0.0
+    total_Pg = 0.0
     for gen in values(gen_data)
         δ = gen[:Pg] > 0 ? 1 : 0
         H_sys += gen[:H] * gen[:Pg] * δ
