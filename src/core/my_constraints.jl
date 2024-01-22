@@ -33,6 +33,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
         total_Pg += gen["Pg"] * δ
     end
     H_sys /= total_Pg
+    
     # Add the inertia constraint to the model
     JuMP.@constraint(pm.model, H_sys >= H_min)
 end
