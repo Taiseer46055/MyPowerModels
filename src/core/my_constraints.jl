@@ -17,7 +17,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     # Search for the specific generator
     gen_at_bus = nothing
     for (gen_id, gen) in gen_data
-        println("Überprüfe Generator $gen_id am Bus $(gen["gen_bus"]) mit GenTech $(gen["GenTech"])")
+        println("Check generator $gen_id at the bus $(gen["gen_bus"]) with GenTech $(gen["GenTech"])")
         if string(gen["gen_bus"]) == string(bus_id) && string(gen["GenTech"]) == string(gen_tech)
             if haskey(gen, "Pg")
                 gen_at_bus = gen
