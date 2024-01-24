@@ -35,8 +35,9 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     # Set the base frequency f0
     f0 = 50.0
     
-    # Calculate P_LOAD as the sum of Pd for all buses
-    P_LOAD = sum(bus["pd"] for (_, bus) in bus_data if haskey(bus, "pd"))
+    # Calculate P_LOAD as the sum of Pd for all buses with a default value of 0
+    P_LOAD = sum(bus["pd"] for (_, bus) in bus_data if haskey(bus, "pd"), init=0.0)
+
 
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_LOAD * 2 * max_rocof)
