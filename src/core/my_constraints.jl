@@ -4,11 +4,11 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
     bus_data = ref(pm, :bus)
-
+#=
     # Debugging: Output the content of gen_data and bus_data
     println("Generator data: ", gen_data)
     println("Bus data: ", bus_data)
-
+=#
     # Check if the bus number exists
     if !haskey(bus_data, bus_id)
         error("Bus number $bus_id does not exist in the network")
@@ -32,7 +32,23 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     if gen_at_bus === nothing
         error("No generator with GenTech $gen_tech found at bus $bus_id")
     end
+    # Set the base frequency f0
+    f0 = 50.0
+    
+    # Calculate P_LOAD as the sum of Pd for all buses
+    P_LOAD = sum(bus["pd"] for (_, bus) in bus_data if haskey(bus, "pd"))
 
+    # Calculate the minimum system inertia H_min
+    H_min = (delta_P * f0) / (P_LOAD * 2 * max_rocof)
+    
+    # Calculate the weighted sum of inertia for all generators with Pg > 0
+    sum_H_gen = sum(gen["H"] * gen["pg"] for (_, gen) in gen_data if haskey(gen, "pg") && gen["pg"] > 0)
+    sum_P_gen = sum(gen["pg"] for (_, gen) in gen_data if haskey(gen, "pg") && gen["pg"] > 0)
+
+    # Calculate H_sys as the weighted average of inertia constants
+    H_sys = sum_P_gen > 0 ? sum_H_gen / sum_P_gen : 0.0
+
+#=
     # Calculate the minimum system inertia (H_min) and system inertia (H_sys)
     H_min = delta_P / max_rocof
     H_sys = 0.0
@@ -44,7 +60,8 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
         end
     end
     H_sys = total_Pg > 0 ? H_sys / total_Pg : 0.0
-
+=#
+    
     # Add the inertia constraint to the model
     JuMP.@constraint(pm.model, H_sys >= H_min)
 end
