@@ -29,7 +29,11 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
             P_LOAD += bus["pd"]
         end
     end
-
+    
+    if P_LOAD <= 0
+        error("Total load P_LOAD is non-positive, which is invalid")
+    end
+    
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_LOAD * 2 * max_rocof)
     
@@ -41,6 +45,11 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
             total_Pg += gen["pg"]
         end
     end
+    
+    if total_Pg <= 0
+        error("Total generator power total_Pg is non-positive, which is invalid")
+    end
+    
     H_sys = total_Pg > 0 ? H_sys / total_Pg : 0.0
 
     # Add the inertia constraint to the model
