@@ -5,6 +5,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
     bus_data = ref(pm, :bus)
+    load_data = ref(pm, :load)
 
     # Check if the generator id exists
     if !haskey(gen_data, gen_id)
@@ -24,7 +25,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
     
     # Calculate P_LOAD as the sum of Pd for all buses with a default value of 0
     P_LOAD = 0.0
-    for (_, load) in data["load"]
+    for (_, load) in load_data["load"]
         if haskey(load, "pd")
             P_LOAD += load["pd"]
         end
