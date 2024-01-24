@@ -57,7 +57,9 @@ function solve_ac_opf_H_min(file, optimizer, gen_id, delta_P, max_rocof; kwargs.
     if gen_id === nothing || delta_P === nothing || max_rocof === nothing
         error("Missing input parameters: gen_id, delta_P or max_rocof")
     end
-
+    
+    println("Running solve_ac_opf_H_min with gen_id: $gen_id, delta_P: $delta_P, max_rocof: $max_rocof")
+    
     # Call a custom solve_opf function with additional parameters.
     return solve_opf_inertia(file, ACPPowerModel, optimizer, gen_id, delta_P, max_rocof; kwargs...)
 end
@@ -103,6 +105,7 @@ function build_opf_H_min(gen_id, delta_P, max_rocof)
         end
 
         # Add new inertia constraint
+        println("Adding inertia constraint for gen_id: $gen_id")
         constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
     end
 
