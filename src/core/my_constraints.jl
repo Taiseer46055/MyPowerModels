@@ -40,7 +40,8 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
 
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_LOAD * 2 * max_rocof)
-    
+
+#=
     # Calculate the weighted sum of inertia for all generators with Pg > 0
     sum_H_gen = sum(gen["H"] * gen["pg"] for (_, gen) in gen_data if haskey(gen, "pg") && gen["pg"] > 0)
     sum_P_gen = sum(gen["pg"] for (_, gen) in gen_data if haskey(gen, "pg") && gen["pg"] > 0)
@@ -48,7 +49,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
     # Calculate H_sys as the weighted average of inertia constants
     H_sys = sum_P_gen > 0 ? sum_H_gen / sum_P_gen : 0.0
 
-#=
+=#
     # Calculate the minimum system inertia (H_min) and system inertia (H_sys)
     H_min = delta_P / max_rocof
     H_sys = 0.0
@@ -60,7 +61,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, bus_id::Int, gen_
         end
     end
     H_sys = total_Pg > 0 ? H_sys / total_Pg : 0.0
-=#
+
     
     # Add the inertia constraint to the model
     JuMP.@constraint(pm.model, H_sys >= H_min)
