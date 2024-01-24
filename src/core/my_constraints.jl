@@ -24,9 +24,9 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
     
     # Calculate P_LOAD as the sum of Pd for all buses with a default value of 0
     P_LOAD = 0.0
-    for (_, bus) in bus_data
-        if haskey(bus, "pd")
-            P_LOAD += bus["pd"]
+    for (_, load) in data["load"]
+        if haskey(load, "pd")
+            P_LOAD += load["pd"]
         end
     end
     
