@@ -38,6 +38,8 @@ function variable_system_inertia(pm::AbstractPowerModel; nw::Int=nw_id_default, 
 
     # Add H_sys to the solution components, if necessary
     #report && sol_component_value(pm, nw, :gen, :H_sys, ids(pm, nw, :gen), H_sys)
+
+    return var(pm, nw)[:H_sys]
 end
 
 ################################### End Taiseer Code #########################
