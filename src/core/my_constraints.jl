@@ -1,4 +1,13 @@
 
+
+function constraint_min_system_inertia(pm::AbstractPowerModel, i::Int; nw::Int=nw_id_default)
+    bus_gens = ref(pm, nw, :bus_gens, i)
+    constraint_min_system_inertia(pm, nw, i, bus_gens)
+end
+
+
+#=
+
 function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
     println("Adding minimum system inertia constraint")
     
@@ -40,6 +49,17 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_LOAD * 2 * max_rocof)
     println(H_min)
+    println(H_sys)
+    
+    # Add the inertia constraint to the model
+    JuMP.@constraint(pm.model, H_sys >= H_min)
+end
+
+
+=#
+
+
+
 #=    
     # Initialize a dictionary to store the inertia at each bus
     H_bus = Dict{Int, Float64}()
@@ -73,18 +93,6 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
     #H_sys = total_Pg > 0 ? H_sys / total_Pg : 0.0
     H_sys = H_sys / total_Pg
 =#
-    println(H_sys)
-    
-    # Add the inertia constraint to the model
-    JuMP.@constraint(pm.model, H_sys >= H_min)
-end
-
-
-
-
-
-
-
 
 
 
