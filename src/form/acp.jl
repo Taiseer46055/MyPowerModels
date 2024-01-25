@@ -1,5 +1,57 @@
 ### polar form of the non-convex AC equations
 
+################################### Start Taiseer Code #########################
+
+function constraint_min_system_inertia(pm::AbstractACPModel, n::Int, i::Int, bus_gens)
+    println("Adding minimum system inertia constraint to ACPModel")
+    
+    H_sys = variable_system_inertia(pm)
+    
+    # Retrieve generator and bus data
+    gen_data = ref(pm, :gen)
+    bus_data = ref(pm, :bus)
+    load_data = ref(pm, :load)
+
+    # Check if the generator id exists
+    if !haskey(gen_data, gen_id)
+        error("Generator id $gen_id does not exist in the network")
+    end
+
+    # Get the specific generator
+    gen_at_bus = gen_data[gen_id]
+    if haskey(gen_at_bus, "pg")
+        gen_at_bus["pg"] -= delta_P
+    else
+        error("Key 'pg' not found in generator with ID $gen_id")
+    end
+
+    # Set the base frequency f0
+    f0 = 50.0
+    
+    # Calculate P_LOAD as the sum of Pd for all buses with a default value of 0
+    P_LOAD = 0.0
+    for (_, load) in load_data
+        if haskey(load, "pd")
+            P_LOAD += load["pd"]
+        end
+    end
+    
+    if P_LOAD <= 0
+        error("Total load P_LOAD is non-positive, which is invalid")
+    end
+    
+    # Calculate the minimum system inertia H_min
+    H_min = (delta_P * f0) / (P_LOAD * 2 * max_rocof)
+    println(H_min)
+    println(H_sys)
+    
+    # Add the inertia constraint to the model
+    JuMP.@constraint(pm.model, H_sys >= H_min)
+end
+
+################################### End Taiseer Code #########################
+
+
 ""
 function variable_bus_voltage(pm::AbstractACPModel; kwargs...)
     variable_bus_voltage_angle(pm; kwargs...)
