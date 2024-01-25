@@ -37,6 +37,7 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
     
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_LOAD * 2 * max_rocof)
+    println(H_min)
 #=    
     # Initialize a dictionary to store the inertia at each bus
     H_bus = Dict{Int, Float64}()
@@ -61,8 +62,8 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
     total_Pg = 0.0
     for (_, gen) in gen_data
         if haskey(gen, "pg") && gen["pg"] > 0
-            H_sys += gen["H"] * gen["pg"]
-            total_Pg += gen["pg"]
+            H_sys += gen["H"] * gen["pmax"]
+            total_Pg += gen["pmax"]
         end
     end
     
