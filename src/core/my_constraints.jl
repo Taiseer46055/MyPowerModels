@@ -1,8 +1,7 @@
 
-
-function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
-    bus_gens = ref(pm, nw, :bus_gens, i)
-    constraint_min_system_inertia(pm, nw, i, bus_gens)
+function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
+    # Aufruf der Funktion constraint_min_system_inertia aus acp.jl
+    constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
 end
 
 
