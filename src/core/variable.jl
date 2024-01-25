@@ -3,6 +3,46 @@
 # This will hopefully make everything more compositional
 ################################################################################
 
+
+################################### Start Taiseer Code #########################
+
+function variable_system_inertia(pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
+    # Initialize H_sys and P_load
+    H_sys = 0.0
+    P_load = 0.0
+
+    # Retrieve generator and load data
+    gen_data = ref(pm, nw, :gen)
+    load_data = ref(pm, nw, :load)
+
+    # Calculate the value of P_load
+    for (_, load) in load_data
+        if haskey(load, "pd")
+            P_load += load["pd"]
+        end
+    end
+
+    # Calculate the value of H_sys
+    for (_, gen) in gen_data
+        H_sys += 2 * gen["H"] * gen["pmax"]
+    end
+
+    # Normalize H_sys
+    H_sys = P_load > 0 ? H_sys / P_load : 0.0
+
+    # Define the H_sys variable in the model
+    var(pm, nw)[:H_sys] = JuMP.@variable(pm.model,
+        base_name="$(nw)_H_sys", 
+        start = H_sys # Use the calculated value as the start value
+    )
+
+    # Add H_sys to the solution components, if necessary
+    report && sol_component_value(pm, nw, :gen, :H_sys, ids(pm, nw, :gen), H_sys)
+end
+
+################################### End Taiseer Code #########################
+
+
 function comp_start_value(comp::Dict{String,<:Any}, key::String, default=0.0)
     return get(comp, key, default)
 end
