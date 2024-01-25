@@ -1,52 +1,5 @@
 ""
-function solve_ac_opf(file, optimizer; kwargs...)
-    return solve_opf(file, ACPPowerModel, optimizer; kwargs...)
-end
 
-""
-function solve_dc_opf(file, optimizer; kwargs...)
-    return solve_opf(file, DCPPowerModel, optimizer; kwargs...)
-end
-
-""
-function solve_opf(file, model_type::Type, optimizer; kwargs...)
-    return solve_model(file, model_type, optimizer, build_opf; kwargs...)
-end
-
-""
-function build_opf(pm::AbstractPowerModel)
-    variable_bus_voltage(pm)
-    variable_gen_power(pm)
-    variable_branch_power(pm)
-    variable_dcline_power(pm)
-
-    objective_min_fuel_and_flow_cost(pm)
-
-    constraint_model_voltage(pm)
-
-    for i in ids(pm, :ref_buses)
-        constraint_theta_ref(pm, i)
-    end
-
-    for i in ids(pm, :bus)
-        constraint_power_balance(pm, i)
-    end
-
-    for i in ids(pm, :branch)
-        constraint_ohms_yt_from(pm, i)
-        constraint_ohms_yt_to(pm, i)
-
-        constraint_voltage_angle_difference(pm, i)
-
-        constraint_thermal_limit_from(pm, i)
-        constraint_thermal_limit_to(pm, i)
-    end
-
-    for i in ids(pm, :dcline)
-        constraint_dcline_power_losses(pm, i)
-    end
-
-end
 
 ##################################################### start ##########################################
 
@@ -114,8 +67,59 @@ function build_opf_H_min(gen_id, delta_P, max_rocof)
 end
 
 ##################################################### End ############################################
-#=
-##################################################### start ##########################################
+
+
+
+
+function solve_ac_opf(file, optimizer; kwargs...)
+    return solve_opf(file, ACPPowerModel, optimizer; kwargs...)
+end
+
+""
+function solve_dc_opf(file, optimizer; kwargs...)
+    return solve_opf(file, DCPPowerModel, optimizer; kwargs...)
+end
+
+""
+function solve_opf(file, model_type::Type, optimizer; kwargs...)
+    return solve_model(file, model_type, optimizer, build_opf; kwargs...)
+end
+
+""
+function build_opf(pm::AbstractPowerModel)
+    variable_bus_voltage(pm)
+    variable_gen_power(pm)
+    variable_branch_power(pm)
+    variable_dcline_power(pm)
+
+    objective_min_fuel_and_flow_cost(pm)
+
+    constraint_model_voltage(pm)
+
+    for i in ids(pm, :ref_buses)
+        constraint_theta_ref(pm, i)
+    end
+
+    for i in ids(pm, :bus)
+        constraint_power_balance(pm, i)
+    end
+
+    for i in ids(pm, :branch)
+        constraint_ohms_yt_from(pm, i)
+        constraint_ohms_yt_to(pm, i)
+
+        constraint_voltage_angle_difference(pm, i)
+
+        constraint_thermal_limit_from(pm, i)
+        constraint_thermal_limit_to(pm, i)
+    end
+
+    for i in ids(pm, :dcline)
+        constraint_dcline_power_losses(pm, i)
+    end
+
+end
+
 
 # This function accepts the same arguments as the standard solve_ac_opf function, but uses your build_my_opf function.
 
