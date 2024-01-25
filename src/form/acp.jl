@@ -28,20 +28,21 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     # Set the base frequency f0
     f0 = 50.0
     
-    # Calculate P_LOAD as the sum of Pd for all buses with a default value of 0
-    P_LOAD = 0.0
+    # Calculate P_load as the sum of Pd for all buses with a default value of 0
+    P_load = 0.0
     for (_, load) in load_data
         if haskey(load, "pd")
-            P_LOAD += load["pd"]
+            P_load += load["pd"]
         end
     end
     
-    if P_LOAD <= 0
-        error("Total load P_LOAD is non-positive, which is invalid")
+    if P_load <= 0
+        error("Total load P_load is non-positive, which is invalid")
     end
     
     # Calculate the minimum system inertia H_min
-    H_min = (delta_P * f0) / (P_LOAD * 2 * max_rocof)
+    H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
+    println(P_load)
     println(H_min)
     println(H_sys)
     
