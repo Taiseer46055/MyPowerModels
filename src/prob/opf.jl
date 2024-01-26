@@ -10,7 +10,7 @@ function solve_ac_opf_H_min(file, optimizer, gen_id, delta_P, max_rocof; kwargs.
         error("Missing input parameters: gen_id, delta_P or max_rocof")
     end
     
-    println("Running solve_ac_opf_H_min with gen_id: $gen_id, delta_P: $delta_P, max_rocof: $max_rocof")
+    println("Running solve_ac_opf_H_min with gen_id: $gen_id, delta_P: $delta_P MW, max_rocof: $max_rocof" Hz/s)
     
     # Call a custom solve_opf function with additional parameters.
     return solve_opf_inertia(file, ACPPowerModel, optimizer, gen_id, delta_P, max_rocof; kwargs...)
