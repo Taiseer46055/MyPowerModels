@@ -5,7 +5,7 @@
 function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
     println("Adding minimum system inertia constraint to ACPModel")
     
-    H_sys = variable_system_inertia(pm)
+    # H_sys = variable_system_inertia(pm)
     
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
