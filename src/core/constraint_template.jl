@@ -32,14 +32,12 @@ function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delt
     constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
 end
 
-function constraint_model_voltage(pm::AbstractPowerModel)
-    constraint_model_voltage(pm)
-end
-
-
-
 ################################### End Taiseer Code #########################
 
+
+function constraint_model_voltage(pm::AbstractPowerModel; nw::Int=nw_id_default)
+    constraint_model_voltage(pm, nw)
+end
 
 """
 This constraint captures problem agnostic constraints that are used to link
