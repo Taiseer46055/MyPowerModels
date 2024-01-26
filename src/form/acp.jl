@@ -48,7 +48,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
     println(H_min)
-    println(H_sys)
+    println("H_sys variable: ", H_sys)  
     
     # Add the inertia constraint to the model
     JuMP.@constraint(pm.model, 10 >= H_min)
