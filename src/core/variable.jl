@@ -30,7 +30,7 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
 
     # Normalize H_sys
     H_sys = H_sys / P_load
-
+    println("Mein H_sys ist:", H_sys)
     # Define the H_sys variable in the model
     var(pm)[:H_sys] = JuMP.@variable(pm.model,
         base_name="H_sys",  
