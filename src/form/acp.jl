@@ -51,7 +51,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     println(H_sys)
     
     # Add the inertia constraint to the model
-    JuMP.@constraint(pm.model, H_sys >= H_min)
+    JuMP.@constraint(pm.model, 10 >= H_min)
 end
 
 ################################### End Taiseer Code #########################
