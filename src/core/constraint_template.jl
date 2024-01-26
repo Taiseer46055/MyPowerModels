@@ -11,6 +11,14 @@
 # and should never refer to model variables
 #
 
+################################### Start Taiseer Code #########################
+
+function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
+    # Aufruf der Funktion constraint_min_system_inertia aus acp.jl
+    constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
+end
+
+################################### End Taiseer Code #########################
 
 ### Voltage Constraints ###
 
@@ -23,18 +31,6 @@ formulation constraints.
 Notable examples include the constraints linking the voltages in the
 ACTPowerModel, constraints linking convex relaxations of voltage variables.
 """
-
-
-################################### Start Taiseer Code #########################
-
-function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
-    # Aufruf der Funktion constraint_min_system_inertia aus acp.jl
-    constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
-end
-
-################################### End Taiseer Code #########################
-
-
 function constraint_model_voltage(pm::AbstractPowerModel; nw::Int=nw_id_default)
     constraint_model_voltage(pm, nw)
 end
