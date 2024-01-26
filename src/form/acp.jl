@@ -12,13 +12,13 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     bus_data = ref(pm, :bus)
     load_data = ref(pm, :load)
     
-    # pg = var(pm, gen_id, :pg)
+    pg = var(pm, gen_id, :pg)
     
     # Load baseMVA into pm model
     baseMVA = ref(pm, :baseMVA)
     
     delta_P /= baseMVA
-    println(delta_P)
+    
     # Check if the generator id exists
     if !haskey(gen_data, gen_id)
         error("Generator id $gen_id does not exist in the network")
@@ -49,7 +49,6 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
-    println(P_load)
     println(H_min)
     println(H_sys)
     
