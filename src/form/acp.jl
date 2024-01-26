@@ -12,7 +12,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     bus_data = ref(pm, :bus)
     load_data = ref(pm, :load)
     
-    pg = var(pm, :gen_data)
+    pg = var(pm, :gen)
 
     # Load baseMVA into pm model
     pm.data["baseMVA"] = mpc.baseMVA
