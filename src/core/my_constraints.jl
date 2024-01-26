@@ -1,10 +1,10 @@
-
+#=
 function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
     # Aufruf der Funktion constraint_min_system_inertia aus acp.jl
     constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
 end
 
-
+=#
 #=
 
 function constraint_min_system_inertia(pm::AbstractPowerModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
