@@ -11,20 +11,30 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     gen_data = ref(pm, :gen)
     bus_data = ref(pm, :bus)
     load_data = ref(pm, :load)
+    
+    pg = var(pm, :gen_data)
+
+    # Load baseMVA into pm model
+    pm.data["baseMVA"] = mpc.baseMVA
+        
+    # Then in your function, you can access it like this:
+    baseMVA = ref(pm, :baseMVA)
+    
+    delta_P /= baseMVA
 
     # Check if the generator id exists
     if !haskey(gen_data, gen_id)
         error("Generator id $gen_id does not exist in the network")
     end
-
+#=
     # Get the specific generator
     gen_at_bus = gen_data[gen_id]
     if haskey(gen_at_bus, "pg")
-        gen_at_bus["pg"] -= delta_P
+        gen_at_bus["pg"] -= delta_P / pm.baseMVA
     else
         error("Key 'pg' not found in generator with ID $gen_id")
     end
-
+=#
     # Set the base frequency f0
     f0 = 50.0
     
