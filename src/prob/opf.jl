@@ -31,10 +31,9 @@ function build_opf_H_min(gen_id, delta_P, max_rocof)
         variable_gen_power(pm)
         variable_branch_power(pm)
         variable_dcline_power(pm)
-        variable_system_inertia(pm)
+
+        
         H_sys = variable_system_inertia(pm)
-
-
 
         
         objective_min_fuel_and_flow_cost(pm)
