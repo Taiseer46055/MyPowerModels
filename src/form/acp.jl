@@ -15,10 +15,10 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     # Iterate through all generators
     for (gen_id, gen) in gen_data
         # Define the variable pg for the generator
-        JuMP.@variable(pm.model, pg[gen_id] >= 0)
+        JuMP.@variable(pm.model, pg_value[gen_id] >= 0)
     end
 
-    print(pg[gen_id])
+    print(pg_value[gen_id])
     # Load baseMVA into pm model
     baseMVA = ref(pm, :baseMVA)
     
