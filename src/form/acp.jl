@@ -15,11 +15,10 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     # pg = var(pm, gen_id, :pg)
     
     # Load baseMVA into pm model
-    pm.data["baseMVA"] = mpc.baseMV
     baseMVA = ref(pm, :baseMVA)
     
     delta_P /= baseMVA
-
+    println(delta_P)
     # Check if the generator id exists
     if !haskey(gen_data, gen_id)
         error("Generator id $gen_id does not exist in the network")
