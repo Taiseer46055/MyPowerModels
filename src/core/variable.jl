@@ -37,7 +37,7 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
         start = H_sys # Use the calculated value as the start value
     )
     
-    println("Mein H_sys value ist:", var(pm)[:H_sys])
+    println("Mein H_sys value ist:", JuMP.value(H_sys))
     
     # Add H_sys to the solution components, if necessary
     # report && sol_component_value(pm, :gen, :H_sys, ids(pm, :gen), H_sys)
