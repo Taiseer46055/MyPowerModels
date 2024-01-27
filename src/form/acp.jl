@@ -21,15 +21,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     if !haskey(gen_data, gen_id)
         error("Generator id $gen_id does not exist in the network")
     end
-#=
-    # Get the specific generator
-    gen_at_bus = gen_data[gen_id]
-    if haskey(gen_at_bus, "pg")
-        gen_at_bus["pg"] -= delta_P / pm.baseMVA
-    else
-        error("Key 'pg' not found in generator with ID $gen_id")
-    end
-=#
+
     # Set the base frequency f0
     f0 = 50.0
     
@@ -50,7 +42,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     println(H_min)  
     
     # Add the inertia constraint to the model
-    JuMP.@constraint(pm.model, H_sys_var >= H_min)
+    JuMP.@constraint(pm.model, JuMP.value(H_sys) >= H_min)
 end
 
 ################################### End Taiseer Code #########################
