@@ -11,6 +11,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     gen_data = ref(pm, :gen)
     bus_data = ref(pm, :bus)
     load_data = ref(pm, :load)
+    
         
     # Load baseMVA into pm model
     baseMVA = ref(pm, :baseMVA)
@@ -46,7 +47,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
        max_power = gen["pmax"]
     end
     
-    JuMP.@objective(pm.model, Min, sum(gen_cost[i] * max_power[i] for i in gen_data))
+    JuMP.@objective(pm.model, Min, sum(ncost[i] * max_power[i] for i in gen_data))
     JuMP.@constraint(pm.model, H_sys_var >= H_min)
     println("H_sys_var: ", JuMP.value(H_sys_var))
 end
