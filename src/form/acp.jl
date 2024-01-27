@@ -37,10 +37,14 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     if P_load <= 0
         error("Total load P_load is non-positive, which is invalid")
     end
+    println("delta_P",delta_P)
+    println("P_load: ",P_load)
+    println("rocof: ", max_rocof)
     
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
-    println(H_min)  
+    println(H_min)
+    
     
     # Add the inertia constraint to the model
     #JuMP.set_optimizer(pm.model, Ipopt.Ipopt.Optimizer)    
