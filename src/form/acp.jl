@@ -43,12 +43,8 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     println(H_min)  
     
     # Add the inertia constraint to the model
-    for (_, gen) in gen_data
-       max_power = gen["pmax"]
-       gen_cost = gen["cost"]
-    end
     
-    JuMP.@objective(pm.model, Min, sum(gen_cost[i] * gen_cost[i] for i in gen_data))
+    JuMP.@objective(pm.model, Min, sum(gen["cost"] * gen["gen"] for (_, gen) in gen_data))
     JuMP.@constraint(pm.model, H_sys_var >= H_min)
     println("H_sys_var: ", JuMP.value(H_sys_var))
 end
