@@ -43,11 +43,10 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     println(H_min)  
     
     # Add the inertia constraint to the model
-    JuMP.set_optimizer(pm.model, Ipopt.Ipopt.Optimizer)    
+    #JuMP.set_optimizer(pm.model, Ipopt.Ipopt.Optimizer)    
     JuMP.@objective(pm.model, Min, sum(sum(gen["cost"]) * sum(gen["pg"]) for (_, gen) in gen_data))
     JuMP.@constraint(pm.model, H_sys_var >= H_min)
-    JuMP.optimize!(pm.model)
-    println("H_sys_var: ", JuMP.value(H_sys_var))
+
 end
 
 ################################### End Taiseer Code #########################
