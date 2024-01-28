@@ -50,7 +50,8 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     # Add H_sys to the solution components, if necessary
     # report && sol_component_value(pm, :gen, :H_sys, ids(pm, :gen), H_sys)
 
-    return var(pm)[:H_sys]
+    return var(pm)[:H_sys], var(pm)[:pg]
+    
 end
 
 
