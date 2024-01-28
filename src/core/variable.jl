@@ -5,6 +5,55 @@
 
 
 ################################### Start Taiseer Code #########################
+
+
+
+function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
+    # Initialize H_sys and P_load
+    H_sys = 0.0
+    P_load = 0.0
+
+    # Retrieve generator and load data
+    gen_data = ref(pm, :gen)
+    load_data = ref(pm, :load)
+
+    # Calculate the value of P_load
+    for (_, load) in load_data
+        if haskey(load, "pd")
+            P_load += load["pd"]
+        end
+    end
+
+    # Define pg as a variable
+    var(pm)[:pg] = JuMP.@variable(pm.model,
+        base_name="pg",
+        [i=1:length(gen_data)],  # Assuming there is one pg for each generator
+        start = gen_data[i]["pg"] # Use the initial pg values as the start values
+    )
+
+    # Calculate the value of H_sys using pg instead of pmax
+    for i in 1:length(gen_data)
+        H_sys += 2 * gen_data[i]["H"] * var(pm)[:pg][i]
+    end
+
+    # Normalize H_sys
+    H_sys = H_sys / (2 * P_load)
+    println("Mein H_sys ist:", H_sys)
+    println("P_load:", P_load)
+
+    # Define the H_sys variable in the model
+    var(pm)[:H_sys] = JuMP.@variable(pm.model,
+        base_name="H_sys",  
+        start = H_sys # Use the calculated value as the start value
+    )
+
+    # Add H_sys to the solution components, if necessary
+    # report && sol_component_value(pm, :gen, :H_sys, ids(pm, :gen), H_sys)
+
+    return var(pm)[:H_sys]
+end
+
+
 #=
 function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     # Initialize H_sys and P_load
