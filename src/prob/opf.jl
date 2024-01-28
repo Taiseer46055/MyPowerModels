@@ -62,7 +62,7 @@ function build_opf_H_min(gen_id, delta_P, max_rocof)
 
         # Add new inertia constraint
         println("Adding inertia constraint for gen_id: $gen_id")
-    constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
+        constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
     end
 
     return build_my_opf
