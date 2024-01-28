@@ -9,8 +9,8 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
-    bus_data = ref(pm, :bus)
     load_data = ref(pm, :load)
+    #bus_data = ref(pm, :bus)
     
         
     # Load baseMVA into pm model
@@ -34,11 +34,10 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
         end
     end
     
-    for (_, gen) in gen_data
-        H_sys += 2 * gen["H"] * gen["pmax"]
-    end
+    # Calculate the minimum system inertia H_min
+    H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
+    println(H_min)   
 
-    # Normalize H_sys
     
     # Add the inertia constraint to the model
     #JuMP.set_optimizer(pm.model, Ipopt.Ipopt.Optimizer)    
