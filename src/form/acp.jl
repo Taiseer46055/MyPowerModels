@@ -33,13 +33,20 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
             P_load += load["pd"]
         end
     end
-
     
-    println("delta_P: ", delta_P)
-    println("P_load: ", P_load)
-    println("rocof: ", max_rocof)
+    for (_, gen) in gen_data
+        H_sys += 2 * gen["H"] * gen["pmax"]
+    end
 
-    
+    # Normalize H_sys
+    H_sys = H_sys / 2 * P_load
+    println("Mein H_sys ist:", H_sys)
+    println("P_load:", P_load)
+    # Define the H_sys variable in the model
+    var(pm)[:H_sys] = JuMP.@variable(pm.model,
+        base_name="H_sys",  
+        start = H_sys # Use the calculated value as the start value
+
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
     println(H_min)
@@ -47,7 +54,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     
     # Add the inertia constraint to the model
     #JuMP.set_optimizer(pm.model, Ipopt.Ipopt.Optimizer)    
-    JuMP.@objective(pm.model, Min, sum(sum(gen["cost"]) * sum(gen["pg"]) for (_, gen) in gen_data))
+    JuMP.@NLobjective(pm.model, Min, sum(sum(gen["cost"]) * sum(gen["pg"]) for (_, gen) in gen_data))
     JuMP.@constraint(pm.model, H_sys_var >= H_min)
     println("H_min after constraint: ", H_min)
 
