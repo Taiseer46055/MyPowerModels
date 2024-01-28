@@ -10,7 +10,7 @@
 
 function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     # Initialize H_sys and P_load
-    H_sys = 0.0
+    H_sys_start = 0.0
     P_load = 0.0
 
     # Retrieve generator and load data
@@ -24,35 +24,36 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
         end
     end
 
-    # Define pg as a variable
+    # Initialize pg variables and calculate H_sys_start
+    pg_start_values = [gen["pg"] for gen in values(gen_data)]
     var(pm)[:pg] = JuMP.@variable(pm.model,
+        [i=1:length(gen_data)],
         base_name="pg",
-        [i=1:length(gen_data)],  # Assuming there is one pg for each generator
-        start = gen_data[i]["pg"] # Use the initial pg values as the start values
+        start = pg_start_values[i]
     )
 
-    # Calculate the value of H_sys using pg instead of pmax
+    # Calculate the initial value of H_sys_start
     for i in 1:length(gen_data)
-        H_sys += 2 * gen_data[i]["H"] * var(pm)[:pg][i]
+        H_sys_start += 2 * gen_data[i]["H"] * pg_start_values[i]
     end
 
-    # Normalize H_sys
-    H_sys = H_sys / (2 * P_load)
-    println("Mein H_sys ist:", H_sys)
+    # Normalize H_sys_start
+    H_sys_start = H_sys_start / (2 * P_load)
+    println("Initialer Wert von H_sys:", H_sys_start)
     println("P_load:", P_load)
 
-    # Define the H_sys variable in the model
+    # Define the H_sys variable in the model with the calculated start value
     var(pm)[:H_sys] = JuMP.@variable(pm.model,
-        base_name="H_sys",  
-        start = H_sys # Use the calculated value as the start value
+        base_name="H_sys",
+        start = H_sys_start
     )
 
     # Add H_sys to the solution components, if necessary
-    # report && sol_component_value(pm, :gen, :H_sys, ids(pm, :gen), H_sys)
+    # Optional: report && sol_component_value(pm, :gen, :H_sys, ids(pm, :gen), value(var(pm)[:H_sys]))
 
     return var(pm)[:H_sys], var(pm)[:pg]
-    
 end
+
 
 
 #=
