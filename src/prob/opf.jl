@@ -33,11 +33,11 @@ function build_opf_H_min(gen_id, delta_P, max_rocof)
         variable_dcline_power(pm)
 
         
-        variable_system_inertia(pm)
+        H_sys = variable_system_inertia(pm)
         
         # Add new inertia constraint
         println("Adding inertia constraint for gen_id: $gen_id")
-        constraint_min_system_inertia(pm, gen_id, delta_P, max_rocof)
+        constraint_min_system_inertia(pm, H_sys, gen_id, delta_P, max_rocof)
         
         objective_min_fuel_and_flow_cost(pm)
 
