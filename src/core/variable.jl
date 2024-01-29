@@ -30,12 +30,12 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
 
     # Definieren der pg Variablen ohne Startwerte
-    pmax_values = [gen["pmax"] for gen in values(gen_data)]
-    pmax = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pmax", start = pg_start_values[i])
-    H_sys_expr = sum(2 * gen_data[i]["H"] * pmax[i] for i in 1:length(gen_data)) / (2 * P_load)
+    # pmax_values = [gen["pmax"] for gen in values(gen_data)]
+    # pmax = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pmax", start = pg_start_values[i])
+    # H_sys_expr = sum(2 * gen_data[i]["H"] * pmax[i] for i in 1:length(gen_data)) / (2 * P_load)
 
     # H_sys wird als Ausdruck definiert, der die aktuellen Werte von pg verwendet
-    # H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
+    H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
 
     # H_sys_expr = JuMP.@NLexpression(pm.model, H_sys_expr, sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load))
     
