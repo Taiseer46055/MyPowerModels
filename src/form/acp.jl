@@ -41,7 +41,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, pg_var::Vector{Vari
     println(H_min)  
     
     H_sys = sum(2 * gen_data[i]["H"] * pg_var[i] for i in 1:length(gen_data)) / (2 * P_load)
-    println(H_sys: ,H_sy)
+    println("H_sys:" ,H_sy)
     # Add the inertia constraint to the model
     
     # JuMP.@objective(pm.model, Min, sum(gen["cost"] * pg[gen_id] for (gen_id, gen) in gen_data))
