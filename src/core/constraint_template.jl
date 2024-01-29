@@ -15,7 +15,7 @@
 
 using JuMP
 
-function constraint_min_system_inertia(pm::AbstractPowerModel, pg_var::Float64, Vector{VariableRef}}, gen_id::Int, delta_P::Float64, max_rocof::Float64)
+function constraint_min_system_inertia(pm::AbstractPowerModel, pg_var::Float64, gen_id::Int, delta_P::Float64, max_rocof::Float64)
     constraint_min_system_inertia(pm, pg_var, gen_id, delta_P, max_rocof)
 end
 
