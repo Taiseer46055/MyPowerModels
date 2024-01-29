@@ -32,7 +32,10 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     
 
     # H_sys wird als Ausdruck definiert, der die aktuellen Werte von pg verwendet
-    H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
+    # H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
+
+    H_sys_expr = JuMP.@NLexpression(pm.model, H_sys_expr, sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load))
+    
 
     # Optional: Define H_sys as a variable if you need to use it directly in the optimization
     # Falls notwendig, kann H_sys auch als Variable definiert werden, hier jedoch als Beispiel ohne Optimierung
