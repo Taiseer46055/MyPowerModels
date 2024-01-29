@@ -45,7 +45,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     # JuMP.@objective(pm.model, Min, sum(gen["cost"] * pg[gen_id] for (gen_id, gen) in gen_data))
 
     
-    JuMP.@NLconstraint(pm.model, H_sys_expr >= H_min)
+    JuMP.@constraint(pm.model, H_sys_expr >= H_min)
     println("H_min after constraint: ", H_min)
 
 end
