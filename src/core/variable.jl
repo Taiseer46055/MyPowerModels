@@ -52,7 +52,7 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
 
     
     # Calculate the initial value of H_sys_start
-    H_sys_start = sum(2 * gen_data[i]["H"] * gen_data[i]["pmax"] for i in 1:length(gen_data)) / (2 * P_load)
+    H_sys_start = sum(2 * gen_data[i]["H"] * gen_data[i]["pg"] for i in 1:length(gen_data)) / (2 * P_load)
 
     println("Initialer Wert von H_sys:", H_sys_start)
     println("P_load:", P_load)
