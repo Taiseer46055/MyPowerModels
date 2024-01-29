@@ -26,13 +26,8 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     end
 
     # Initialize pg variables and calculate H_sys_start
-    pg_start_values = [gen["pg"] for gen in values(gen_data)]
-    var(pm)[:pg] = JuMP.@variable(pm.model,
-        [i=1:length(gen_data)],
-        base_name="pg",
-        start = [pg_start_values[i] for i in 1:length(gen_data)] 
-    )
-#=
+    JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
+    #=
     # Calculate the initial value of H_sys_start
     for i in 1:length(gen_data)
         H_sys_start += 2 * gen_data[i]["H"] * gen_data[i]["pmax"]
