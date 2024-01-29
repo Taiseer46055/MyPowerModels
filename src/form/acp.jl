@@ -5,7 +5,7 @@
 function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_P::Float64, max_rocof::Float64)
     println("Adding minimum system inertia constraint to ACPModel")
     
-    H_sys_var = variable_system_inertia(pm)
+    H_sys_expr, pg = variable_system_inertia(pm)
     
     # Retrieve generator and bus data
     gen_data = ref(pm, :gen)
@@ -44,7 +44,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
     # JuMP.@objective(pm.model, Min, sum(gen["cost"] * pg[gen_id] for (gen_id, gen) in gen_data))
 
     
-    JuMP.@constraint(pm.model, H_sys_var >= H_min)
+    JuMP.@constraint(pm.model, H_sys_expr >= H_min)
     println("H_min after constraint: ", H_min)
 
 end
