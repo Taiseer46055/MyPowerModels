@@ -34,15 +34,6 @@ function constraint_min_system_inertia(pm::AbstractACPModel, gen_id::Int, delta_
         end
     end
 
-    pg_start_values = [gen["pg"] for gen in values(gen_data)]
-    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
-    
-
-    # H_sys wird als Ausdruck definiert, der die aktuellen Werte von pg verwendet
-    # H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
-
-    H_sys_expr = JuMP.@expression(pm.model, H_sys_expr, sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load))
-    
     
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
