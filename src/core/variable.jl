@@ -11,6 +11,7 @@
 function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     # Initialize H_sys and P_load
     H_sys_start = 0.0
+    H_sys = 0.0
     P_load = 0.0
 
     # Retrieve generator and load data
