@@ -65,8 +65,13 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
         start = H_sys_start
     )
 =#
-    # Initialize pg variables
-    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = [gen_data[i]["pg"] for i in 1:length(gen_data)])
+    # Definieren der pg Variablen ohne Startwerte
+    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg")
+    
+    # Setzen der Startwerte für jede pg Variable
+    for i in 1:length(gen_data)
+        set_start_value(pg[i], gen_data[i]["pg"])
+    end
 
     # Define H_sys as a JuMP expression dependent on pg
     # H_sys wird als Ausdruck definiert, der die aktuellen Werte von pg verwendet
