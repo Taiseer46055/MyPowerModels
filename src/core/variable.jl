@@ -7,6 +7,14 @@
 ################################### Start Taiseer Code #########################
 
 
+function variable_pg(pm::AbstractPowerModel)
+    gen_data = ref(pm, :gen)
+    pg_start_values = [gen["pg"] for gen in values(gen_data)]
+    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
+    return pg
+end
+
+#=
 
 function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     # Initialize H_sys and P_load
@@ -140,7 +148,7 @@ end
 =#
 
 
-
+=#
 
 ################################### End Taiseer Code #########################
 
