@@ -24,11 +24,13 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
             P_load += load["pd"]
         end
     end
-
+#=
     # Initialize pg variables and calculate H_sys_start
     pg_start_values = [gen["pg"] for gen in values(gen_data)]
     JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
-    #=
+
+    
+    
     # Calculate the initial value of H_sys_start
     for i in 1:length(gen_data)
         H_sys_start += 2 * gen_data[i]["H"] * gen_data[i]["pmax"]
@@ -48,7 +50,7 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
 
     # Add H_sys to the solution components, if necessary
     # Optional: report && sol_component_value(pm, :gen, :H_sys, ids(pm, :gen), value(var(pm)[:H_sys]))
-=#
+
 
     
     # Calculate the initial value of H_sys_start
@@ -62,9 +64,27 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
         base_name="H_sys",
         start = H_sys_start
     )
+=#
+    # Initialize pg variables
+    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = [gen_data[i]["pg"] for i in 1:length(gen_data)])
+
+    # Define H_sys as a JuMP expression dependent on pg
+    # H_sys wird als Ausdruck definiert, der die aktuellen Werte von pg verwendet
+    H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
+
+    # Optional: Define H_sys as a variable if you need to use it directly in the optimization
+    # Falls notwendig, kann H_sys auch als Variable definiert werden, hier jedoch als Beispiel ohne Optimierung
+    # var(pm)[:H_sys] = JuMP.@variable(pm.model, base_name="H_sys", start = H_sys_start)
+
+    println("Berechneter Ausdruck von H_sys:", H_sys_expr)
+    println("P_load:", P_load)
     
-    return var(pm)[:H_sys], var(pm)[:pg]
+    # Return the expression and pg variables
+    return H_sys_expr, pg
 end
+    
+   #return var(pm)[:H_sys], var(pm)[:pg]
+#end
 
 
 
