@@ -35,7 +35,7 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
 
     # Calculate the initial value of H_sys_start
     for i in 1:length(gen_data)
-        H_sys_start += 2 * gen_data[i]["H"] * pg_start_values[i]
+        H_sys_start += 2 * gen_data[i]["H"] * gen_data[i]["pmax"]
     end
 
     # Normalize H_sys_start
