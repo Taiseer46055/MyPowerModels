@@ -40,7 +40,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, pg_var::Vector{Vari
     H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
     println(H_min)  
     
-    H_sys_expr = sum(2 * gen_data[i]["H"] * pg_var[i] for i in 1:length(gen_data)) / (2 * P_load)
+    H_sys = sum(2 * gen_data[i]["H"] * pg_var[i] for i in 1:length(gen_data)) / (2 * P_load)
     
     # Add the inertia constraint to the model
     
