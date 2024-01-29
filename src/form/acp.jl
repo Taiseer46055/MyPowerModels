@@ -44,7 +44,7 @@ function constraint_min_system_inertia(pm::AbstractACPModel, H_sys::Tuple{AffExp
     
     # JuMP.@objective(pm.model, Min, sum(gen["cost"] * pg[gen_id] for (gen_id, gen) in gen_data))
 
-    
+    H_sys_expr, _ = H_sys
     JuMP.@constraint(pm.model, H_sys >= H_min)
     println("H_min after constraint: ", H_min)
 
