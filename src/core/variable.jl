@@ -24,6 +24,31 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
             P_load += load["pd"]
         end
     end
+
+    # Definieren der pg Variablen ohne Startwerte
+    
+    pg_start_values = [gen["pg"] for gen in values(gen_data)]
+    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
+    
+
+    # H_sys wird als Ausdruck definiert, der die aktuellen Werte von pg verwendet
+    H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
+
+    # Optional: Define H_sys as a variable if you need to use it directly in the optimization
+    # Falls notwendig, kann H_sys auch als Variable definiert werden, hier jedoch als Beispiel ohne Optimierung
+    # var(pm)[:H_sys] = JuMP.@variable(pm.model, base_name="H_sys", start = H_sys_start)
+
+    println("Berechneter Ausdruck von H_sys:", H_sys_expr)
+    println("P_load:", P_load)
+    
+    # Return the expression and pg variables
+    return H_sys_expr, pg
+end
+    
+   #return var(pm)[:H_sys], var(pm)[:pg]
+#end
+
+
 #=
     # Initialize pg variables and calculate H_sys_start
     pg_start_values = [gen["pg"] for gen in values(gen_data)]
@@ -65,29 +90,6 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
         start = H_sys_start
     )
 =#
-    # Definieren der pg Variablen ohne Startwerte
-    pg_start_values = [gen["pg"] for gen in values(gen_data)]
-    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
-    
-
-    # Define H_sys as a JuMP expression dependent on pg
-    # H_sys wird als Ausdruck definiert, der die aktuellen Werte von pg verwendet
-    H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
-
-    # Optional: Define H_sys as a variable if you need to use it directly in the optimization
-    # Falls notwendig, kann H_sys auch als Variable definiert werden, hier jedoch als Beispiel ohne Optimierung
-    # var(pm)[:H_sys] = JuMP.@variable(pm.model, base_name="H_sys", start = H_sys_start)
-
-    println("Berechneter Ausdruck von H_sys:", H_sys_expr)
-    println("P_load:", P_load)
-    
-    # Return the expression and pg variables
-    return H_sys_expr, pg
-end
-    
-   #return var(pm)[:H_sys], var(pm)[:pg]
-#end
-
 
 
 #=
