@@ -2,7 +2,8 @@
 
 ################################### Start Taiseer Code #########################
 
-function constraint_min_system_inertia(pm::AbstractACPModel, H_sys::Tuple{AffExpr, Vector{VariableRef}}, gen_id::Int, delta_P::Float64, max_rocof::Float64)
+function constraint_min_system_inertia(pm::AbstractACPModel, pg_var::Float64, gen_id::Int, delta_P::Float64, max_rocof::Float64)
+    
     println("Adding minimum system inertia constraint to ACPModel")
     
     # H_sys_expr, pg = variable_system_inertia(pm)
@@ -37,14 +38,14 @@ function constraint_min_system_inertia(pm::AbstractACPModel, H_sys::Tuple{AffExp
     
     # Calculate the minimum system inertia H_min
     H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
-    println(H_min)   
-
+    println(H_min)  
+    
+    H_sys_expr = sum(2 * gen_data[i]["H"] * pg_var[i] for i in 1:length(gen_data)) / (2 * P_load)
     
     # Add the inertia constraint to the model
     
     # JuMP.@objective(pm.model, Min, sum(gen["cost"] * pg[gen_id] for (gen_id, gen) in gen_data))
 
-    H_sys_expr, _ = H_sys
     JuMP.@constraint(pm.model, H_sys >= H_min)
     println("H_min after constraint: ", H_min)
 
