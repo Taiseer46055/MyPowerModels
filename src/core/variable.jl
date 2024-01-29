@@ -7,7 +7,7 @@
 ################################### Start Taiseer Code #########################
 
 
-
+#=
 function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
     # Initialize H_sys and P_load
     H_sys_start = 0.0
@@ -130,6 +130,7 @@ function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
 
     return var(pm)[:H_sys]
 end
+=#
 =#
 ################################### End Taiseer Code #########################
 
