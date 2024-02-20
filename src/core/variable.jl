@@ -6,150 +6,43 @@
 
 ################################### Start Taiseer Code #########################
 
-
-function variable_pg(pm::AbstractPowerModel)
+#=
+function calculate_P_gen_bus(pm::AbstractACPModel)
     gen_data = ref(pm, :gen)
-    pg_start_values = [gen["pg"] for gen in values(gen_data)]
-    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
-    return pg
+    pg = var(pm, :pg)
+    P_gen_bus = Dict()
+    for j in keys(ref(pm, :bus))
+        P_gen_bus[j] = sum(value(pg[i]) for i in keys(pg) if gen_data[i]["gen_bus"] == j)
+    end
+    println("In variabel.jl ist P_gen_bus: ", P_gen_bus)
+    return P_gen_bus
 end
 
-#=
 
-function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
-    # Initialize H_sys and P_load
-    H_sys_start = 0.0
-    H_sys = 0.0
-    P_load = 0.0
 
-    # Retrieve generator and load data
+function calculate_P_gen_bus(pm::AbstractACPModel)
+    bus_data = ref(pm, :bus)
     gen_data = ref(pm, :gen)
-    load_data = ref(pm, :load)
+    pg = var(pm, :pg)
+    P_gen_bus = Dict()
 
-    # Calculate the value of P_load
-    for (_, load) in load_data
-        if haskey(load, "pd")
-            P_load += load["pd"]
+    for j in keys(bus_data)
+        P_gen_bus[j] = 0
+        if 1 <= j <= 4
+            for i in keys(gen_data)
+                if gen_data[i]["index"] == j 
+                    P_gen_bus[j] += JuMP.value(pg[i])
+                end
+            end
         end
     end
-
-    # Definieren der pg Variablen ohne Startwerte
-    pg_start_values = [gen["pg"] for gen in values(gen_data)]
-    pg = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
-
-    # Definieren der pg Variablen ohne Startwerte
-    # pmax_values = [gen["pmax"] for gen in values(gen_data)]
-    # pmax = JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pmax", start = pg_start_values[i])
-    # H_sys_expr = sum(2 * gen_data[i]["H"] * pmax[i] for i in 1:length(gen_data)) / (2 * P_load)
-
-    # H_sys wird als Ausdruck definiert, der die aktuellen Werte von pg verwendet
-    H_sys_expr = sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load)
-
-    # H_sys_expr = JuMP.@NLexpression(pm.model, H_sys_expr, sum(2 * gen_data[i]["H"] * pg[i] for i in 1:length(gen_data)) / (2 * P_load))
     
-
-    # Optional: Define H_sys as a variable if you need to use it directly in the optimization
-    # Falls notwendig, kann H_sys auch als Variable definiert werden, hier jedoch als Beispiel ohne Optimierung
-    # var(pm)[:H_sys] = JuMP.@variable(pm.model, base_name="H_sys", start = H_sys_start)
-
-    println("Berechneter Ausdruck von H_sys:", H_sys_expr)
-    println("P_load:", P_load)
-    
-    # Return the expression and pg variables
-    return H_sys_expr, pg
+    return P_gen_bus
 end
-    
-   #return var(pm)[:H_sys], var(pm)[:pg]
-#end
 
-
-#=
-    # Initialize pg variables and calculate H_sys_start
-    pg_start_values = [gen["pg"] for gen in values(gen_data)]
-    JuMP.@variable(pm.model, [i = 1:length(gen_data)], base_name = "pg", start = pg_start_values[i])
-
-    
-    
-    # Calculate the initial value of H_sys_start
-    for i in 1:length(gen_data)
-        H_sys_start += 2 * gen_data[i]["H"] * gen_data[i]["pmax"]
-    end
-
-    # Normalize H_sys_start
-    H_sys = H_sys_start = H_sys_start / (2 * P_load)
-    
-    println("Initialer Wert von H_sys:", H_sys_start)
-    println("P_load:", P_load)
-
-    # Define the H_sys variable in the model with the calculated start value
-    var(pm)[:H_sys] = JuMP.@variable(pm.model,
-        base_name="H_sys",
-        start = H_sys_start
-    )
-
-    # Add H_sys to the solution components, if necessary
-    # Optional: report && sol_component_value(pm, :gen, :H_sys, ids(pm, :gen), value(var(pm)[:H_sys]))
-
-
-    
-    # Calculate the initial value of H_sys_start
-    H_sys_start = sum(2 * gen_data[i]["H"] * gen_data[i]["pg"] for i in 1:length(gen_data)) / (2 * P_load)
-
-    println("Initialer Wert von H_sys:", H_sys_start)
-    println("P_load:", P_load)
-
-    # Define the H_sys variable in the model with the calculated start value
-    var(pm)[:H_sys] = JuMP.@variable(pm.model,
-        base_name="H_sys",
-        start = H_sys_start
-    )
-=#
-
-
-
-#=
-function variable_system_inertia(pm::AbstractPowerModel; report::Bool=true)
-    # Initialize H_sys and P_load
-    H_sys = 0.0
-    P_load = 0.0
-
-    # Retrieve generator and load data
-    gen_data = ref(pm, :gen)
-    load_data = ref(pm, :load)
-
-    
-    # Calculate the value of P_load
-    for (_, load) in load_data
-        if haskey(load, "pd")
-            P_load += load["pd"]
-        end
-    end
-
-    # Calculate the value of H_sys
-    for (_, gen) in gen_data
-        H_sys += 2 * gen["H"] * gen["pmax"]
-    end
-
-    # Normalize H_sys
-    H_sys = H_sys / 2 * P_load
-    println("Mein H_sys ist:", H_sys)
-    println("P_load:", P_load)
-    # Define the H_sys variable in the model
-    var(pm)[:H_sys] = JuMP.@variable(pm.model,
-        base_name="H_sys",  
-        start = H_sys # Use the calculated value as the start value
-    )
-    
-    # Add H_sys to the solution components, if necessary
-    # report && sol_component_value(pm, :gen, :H_sys, ids(pm, :gen), H_sys)
-
-    return var(pm)[:H_sys]
-end
-=#
 
 
 =#
-
 ################################### End Taiseer Code #########################
 
 

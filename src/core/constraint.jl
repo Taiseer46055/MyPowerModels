@@ -4,6 +4,22 @@
 # for branches flows and bus flow conservation
 ###############################################################################
 
+
+################################### Start Taiseer Code #########################
+#=
+function constraint_system_inertia(pm::AbstractPowerModel, H_min::Float64, P_load::Float64)
+
+    pmax = var(pm, n, :pmax, i)
+    H = var(pm, n, :H, i)
+    z = var(pm, n, :z_gen, i)
+
+    JuMP.@constraint(pm.model, sum(2 * H[i] * pmax[i]*z for i in 1:length(gen_data)) / (2 * P_load) >= H_min)
+end
+
+=#
+################################### End Taiseer Code #########################
+
+
 "checks if a sufficient number of variables exist for the given keys collection"
 function _check_var_keys(vars, keys, var_name, comp_name)
     if length(vars) < length(keys)

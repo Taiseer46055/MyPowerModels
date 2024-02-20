@@ -3,42 +3,118 @@
 ##################################################### start ##########################################
 
 # This function is a custom version of solve_ac_opf with additional parameters for inertia constraints.
-function solve_ac_opf_H_min(file, optimizer, gen_id, delta_P, max_rocof; kwargs...)
-    
-    # Check if all required parameters are provided.
-    if gen_id === nothing || delta_P === nothing || max_rocof === nothing
-        error("Missing input parameters: gen_id, delta_P or max_rocof")
+function solve_ac_opf_H_min(file, optimizer, options; kwargs...)
+    # Check that options has the keys "f" and "v"
+    if !haskey(options, "f")
+        error("Options must contain the keys 'f'")
     end
-    
-    println("Running solve_ac_opf_H_min with gen_id: $gen_id, delta_P: $delta_P MW, max_rocof: $max_rocof Hz/s")
-    
+
+    # Check that "f" contains all required keys
+    required_keys = ["inertia_constraint", "disturbance", "system", "area", "bus", "calc_delta_P", "alpha_factor", "rocof"]
+    if !all(haskey(options["f"], key) for key in required_keys)
+        error("Options 'f' must contain the keys: ", join(required_keys, ", "))
+    end
+
+    # Check that the values of "inertia_constraint", "system", "area", and "bus" are either "true" or "false"
+    for key in ["inertia_constraint", "system", "area", "bus"]
+        if options["f"][key] != "true" && options["f"][key] != "false"
+            error("Option '$key' must be either 'true' or 'false'")
+        end
+    end
+
+    # Check that the value of "disturbance" is either "small" or "large"
+    if options["f"]["disturbance"] != "small" && options["f"]["disturbance"] != "large"
+        error("Option 'disturbance' must be either 'small' or 'large'")
+    end
+
+    # Check that the value of "calc_delta_P" is either "internal" or an array of two numbers
+    if !(options["f"]["calc_delta_P"] == "internal" || (isa(options["f"]["calc_delta_P"], Array) && length(options["f"]["calc_delta_P"]) == 2))
+        error("Option 'calc_delta_P' must be either 'internal' or an array of two numbers")
+    end
+
+    # Check that the value of "alpha_factor" is a number between 0 and 1
+    if !(isa(options["f"]["alpha_factor"], Number) && 0 <= options["f"]["alpha_factor"] <= 1)
+        error("Option 'alpha_factor' must be a number between 0 and 1")
+    end
+
+    # Check that the value of "rocof" is a positive number
+    if !(isa(options["f"]["rocof"], Number) && options["f"]["rocof"] > 0)
+        error("Option 'rocof' must be a positive number")
+    end
+
+    # Check that the value of "weighted_area" is either "load", "equal", or "none"
+
     # Call a custom solve_opf function with additional parameters.
-    return solve_opf_inertia(file, ACPPowerModel, optimizer, gen_id, delta_P, max_rocof; kwargs...)
+    return solve_opf_inertia(file, ACPPowerModel, optimizer, options; kwargs...)
 end
 
 # Custom solve_opf function that includes inertia constraints.
-function solve_opf_inertia(file, model_type::Type, optimizer, gen_id, delta_P, max_rocof; kwargs...)
-    # Call solve_model with a custom build function that includes inertia constraints.
-    return solve_model(file, model_type, optimizer, build_opf_H_min(gen_id, delta_P, max_rocof); kwargs...)
+
+function solve_opf_inertia(file, model_type::Type, optimizer, options; kwargs...)
+    
+    return solve_model(file, model_type, optimizer, build_opf_H_min(options); kwargs...)
 end
 
 # Custom build function for OPF that includes standard constraints and additional inertia constraints.
-function build_opf_H_min(gen_id, delta_P, max_rocof)
+function build_opf_H_min(options::Dict{String, Dict{K, Any} where K})
     # Define a function to build the OPF model.
     function build_my_opf(pm::AbstractPowerModel)
-        # Standard OPF constraints
+        # Extract data from the power model
+        
+        gen_data = ref(pm, :gen)
+        load_data = ref(pm, :load)
+        f_options = options["f"]
+        alpha = f_options["alpha_factor"]
+        calc_delta_P = f_options["calc_delta_P"]
+        baseMVA = ref(pm, :baseMVA)
+            # Process delta_P based on the calculation method specified in options
+        if isa(calc_delta_P, Array) && length(calc_delta_P) == 2
+            gen_id = calc_delta_P[1]
+            delta_P = calc_delta_P[2]/baseMVA
+            println("delta_P: ", delta_P)
+
+            gen_data[gen_id]["pmax"] = max(0, gen_data[gen_id]["pmax"] - delta_P)
+            gen_data[gen_id]["pmin"] = max(0, gen_data[gen_id]["pmin"] - delta_P)
+
+            println("Pmax of generator $gen_id: ", gen_data[gen_id]["pmax"])
+            println("Pmin of generator $gen_id: ", gen_data[gen_id]["pmin"])
+
+        elseif isa(calc_delta_P, String) && calc_delta_P == "internal"
+            # Calculate delta_P internally based on generator data
+            H_pmax_product = Dict(i => gen_data[i]["H"] * gen_data[i]["pmax"] for i in eachindex(gen_data))
+            println("H_pmax_product: ", H_pmax_product)
+            max_product_gen = argmax(H_pmax_product)[1]
+            println("Generator with maximum product of H and Pmax: ", max_product_gen)
+            println("Pmax of generator with maximum product: ", gen_data[max_product_gen]["pmax"])
+            println("H of generator with maximum product: ", gen_data[max_product_gen]["H"])
+
+            delta_P = (gen_data[max_product_gen]["pmax"])*alpha
+            println("delta_P: ", delta_P)
+
+            gen_data[max_product_gen]["pmax"] = max(0, gen_data[max_product_gen]["pmax"]*(1-alpha))
+            gen_data[max_product_gen]["pmin"] = max(0, gen_data[max_product_gen]["pmin"]*(1-alpha))
+
+        else
+            error("Invalid value for calc_delta_P. It must be either an array of number or 'internal'.")
+        end
+
+        # calc H_min
+        rocof = f_options["rocof"]
+        f0 = 50.0
+        P_load = sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in load_data)
+        H_min = (delta_P * f0) / (P_load * 2 * rocof)
+
         variable_bus_voltage(pm)
-        variable_gen_power(pm)
+
+        variable_gen_indicator(pm)
+        variable_gen_power_on_off(pm)
+
+        variable_storage_indicator(pm)
+        variable_storage_power_mi_on_off(pm)
+
         variable_branch_power(pm)
         variable_dcline_power(pm)
 
-        
-        pg_var = variable_pg(pm)
-        
-        # Add new inertia constraint
-        println("Adding inertia constraint for gen_id: $gen_id")
-        constraint_min_system_inertia(pm, pg_var, gen_id, delta_P, max_rocof)
-        
         objective_min_fuel_and_flow_cost(pm)
 
         constraint_model_voltage(pm)
@@ -46,14 +122,25 @@ function build_opf_H_min(gen_id, delta_P, max_rocof)
         for i in ids(pm, :ref_buses)
             constraint_theta_ref(pm, i)
         end
-
+        for i in ids(pm, :gen)
+            constraint_gen_power_on_off(pm, i)
+        end
+        for i in ids(pm, :storage)
+            constraint_storage_on_off(pm, i)
+        end
         for i in ids(pm, :bus)
             constraint_power_balance(pm, i)
         end
-
+        for i in ids(pm, :storage)
+            constraint_storage_state(pm, i)
+            constraint_storage_complementarity_mi(pm, i)
+            constraint_storage_losses(pm, i)
+            constraint_storage_thermal_limit(pm, i)
+        end
         for i in ids(pm, :branch)
             constraint_ohms_yt_from(pm, i)
             constraint_ohms_yt_to(pm, i)
+    
             constraint_voltage_angle_difference(pm, i)
             constraint_thermal_limit_from(pm, i)
             constraint_thermal_limit_to(pm, i)
@@ -62,10 +149,28 @@ function build_opf_H_min(gen_id, delta_P, max_rocof)
         for i in ids(pm, :dcline)
             constraint_dcline_power_losses(pm, i)
         end
+        # Inertia constraints
 
+        if haskey(options, "f")
+            f_options = options["f"]
+            println("f_options: ", f_options)
+            inertia_constraint = f_options["inertia_constraint"]
+            if inertia_constraint == "true"
+                println("Add inertia constraints to the model.")
+                constraint_system_inertia(pm, H_min, f_options)
+            end
+        else
+            println("The required variables are not entered. Please check your options.")
+        end
+        
+        # add H_min and delta_P as attributes to the data model
 
+        pm.ext[:H_min] = H_min
+        pm.ext[:delta_P] = delta_P
+
+        pm.data["H_min"] = pm.ext[:H_min]
+        pm.data["delta_P"] = pm.ext[:delta_P]
     end
-
     return build_my_opf
 end
 
