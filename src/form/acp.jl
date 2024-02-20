@@ -2,53 +2,146 @@
 
 ################################### Start Taiseer Code #########################
 
-function constraint_min_system_inertia(pm::AbstractACPModel, pg_var::Vector{VariableRef}, gen_id::Int, delta_P::Float64, max_rocof::Float64)
-    
-    println("Adding minimum system inertia constraint to ACPModel")
-    
-    # H_sys_expr, pg = variable_system_inertia(pm)
-    
-    # Retrieve generator and bus data
+# Defines a function to calculate system inertia constraints in an AC Power Model
+
+function constraint_system_inertia(pm::AbstractACPModel, H_min::Float64 , f_options::Dict{String, Any})
+
+    # Extract options from the provided dictionary
+    #println(options)
+    #f_options = options["f"]
+    disturbance = f_options["disturbance"]
+    system = f_options["system"]
+    area = f_options["area"]
+    bus = f_options["bus"]
+    rocof = f_options["rocof"]
+    weighted_area = f_options["weighted_area"]
+
+    # Reference data from the power model
     gen_data = ref(pm, :gen)
     load_data = ref(pm, :load)
-    #bus_data = ref(pm, :bus)
-    
-        
-    # Load baseMVA into pm model
     baseMVA = ref(pm, :baseMVA)
-    
-    delta_P /= baseMVA
-    
-    # Check if the generator id exists
-    if !haskey(gen_data, gen_id)
-        error("Generator id $gen_id does not exist in the network")
-    end
+    bus_data = ref(pm, :bus)
 
-    # Set the base frequency f0
+    # Define variable for generator status (on/off)
+    z = var(pm, :z_gen)
+
+    # Nominal frequency of the network
     f0 = 50.0
-    
-    # Calculate P_load as the sum of Pd for all buses with a default value of 0
-    P_load = 0.0
-    for (_, load) in load_data
-        if haskey(load, "pd")
-            P_load += load["pd"]
+    # Calculate total load in the system by summing power demand across all loads
+    P_load = sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in load_data)
+  
+    # Ensure there is a non-zero load in the system
+    @assert P_load > 0 "P_load must be greater than 0"
+
+    # Calculate the minimum required system inertia (H_min)
+    # H_min = (delta_P * f0) / (P_load * 2 * rocof)
+    println("H_min: ", H_min)
+    # Calculate the actual system inertia (H_sys) based on generator data and status
+    H_sys = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data)) / sum(gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data))
+    println("H_sys: ", H_sys)
+    println("Pmax: ", [gen_data[i]["pmax"] for i in eachindex(gen_data)])
+    println("Pmin: ", [gen_data[i]["pmin"] for i in eachindex(gen_data)])
+
+    if system == "true"
+        # Apply the system inertia constraint to the model
+        println("Adding minimum system inertia constraint to ACPModel")
+        JuMP.@NLconstraint(pm.model, H_sys >= H_min)
+    end
+    # Apply constraints based on the type of disturbance
+    if disturbance == "small"
+        # hier area  einfügen. Entweder nicht da oder H_min_area>=H_min oder gewichtete Mittlewert >= H_min
+        if weighted_area == "equal"
+            # Area-specific inertia constraints
+            println("Adding minimum equal area inertia constraint to ACPModel")
+            # Initialize dictionaries to store area-specific data
+            areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+            for area in areas
+                H_area = Dict()
+                # Identify generators and loads within each area
+                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
+                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0) / sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                # Apply area-specific inertia constraints
+                JuMP.@NLconstraint(pm.model, H_area[area] >= H_min)
+            end
+        elseif weighted_area == "load"
+            # Area-specific inertia constraints
+            println("Adding minimum weighted area inertia constraint to ACPModel")
+            areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+            sum_H_area_weighted = 0
+            for area in areas
+                W_v = Dict()
+                H_area = Dict()
+                load_sum_area = Dict()
+                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
+                loads_in_area = [i for i in eachindex(load_data) if bus_data[load_data[i]["load_bus"]]["area"] == area]
+                load_sum_area[area] = sum(load_data[i]["pd"] for i in loads_in_area; init=0)
+                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0) / sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                W_v[area] = load_sum_area[area] / P_load
+                println("W_v von area $area: ", W_v[area])
+                sum_H_area_weighted  += W_v[area] * H_area[area]
+            end
+            println("sum_H_area_weighted: ", sum_H_area_weighted)
+            JuMP.@NLconstraint(pm.model, sum_H_area_weighted >= H_min)
+
+        elseif weighted_area == "none"
+
+          println("weighted_area_constraint is not added to the model")  
+        end
+    elseif disturbance == "large"
+  
+        if area == "true"
+            # Area-specific inertia constraints
+            println("Adding minimum area inertia constraint to ACPModel")
+            
+            # Initialize dictionaries to store area-specific data
+            H_area = Dict()
+            H_min_area = Dict()
+            P_load_area = Dict()
+            delta_p_area = Dict()
+            pg = var(pm, :pg)
+            areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+            for area in areas
+                
+                # Identify generators and loads within each area
+                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
+                buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == area]
+                
+                # Calculate load and potential delta_p for each area
+                P_load_area[area] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0)
+                P_gen_area_expr = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_area))
+                delta_p_area[area] = JuMP.@expression(pm.model, abs(P_gen_area_expr - P_load_area[area]))
+                H_min_area[area] = (delta_p_area[area] * f0) / (P_load_area[area] * 2 * rocof)
+                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0) / sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                # Apply area-specific inertia constraints
+                JuMP.@NLconstraint(pm.model, H_area[area] >= H_min_area[area])
+            end
+        end
+
+        if bus == "true"
+            # Bus-specific inertia constraints
+            println("Adding minimum bus inertia constraint to ACPModel")
+
+            # Initialize dictionaries to store bus-specific data
+            H_bus = Dict()
+            H_min_bus = Dict()
+            P_load_bus = Dict()
+            delta_p_bus = Dict()
+            P_gen_bus_exprs = Dict()
+            pg = var(pm, :pg)
+
+            for j in keys(bus_data)
+                P_gen_bus_exprs[j] = JuMP.@expression(pm.model, sum(pg[i] for (i, gen) in ref(pm, :gen) if gen["gen_bus"] == j))
+                P_load_bus[j] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] == j; init=0)
+                delta_p_bus[j] = JuMP.@expression(pm.model, abs(P_gen_bus_exprs[j] - P_load_bus[j]))
+                H_min_bus[j] = (delta_p_bus[j] * f0) / (P_load_bus[j] * 2 * rocof)
+                println("H_min_bus $j = ", H_min_bus[j])
+                H_bus[j] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j; init=0) / sum(gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j; init=0)
+                println("H_bus $j = ", H_bus[j])
+                # Apply bus-specific inertia constraints
+                JuMP.@NLconstraint(pm.model, H_bus[j] >= H_min_bus[j])
+            end
         end
     end
-
-    
-    # Calculate the minimum system inertia H_min
-    H_min = (delta_P * f0) / (P_load * 2 * max_rocof)
-    println(H_min)  
-    
-    H_sys = sum(2 * gen_data[i]["H"] * pg_var[i] for i in 1:length(gen_data)) / (2 * P_load)
-    println("H_sys:" ,H_sys)
-    # Add the inertia constraint to the model
-    
-    # JuMP.@objective(pm.model, Min, sum(gen["cost"] * pg[gen_id] for (gen_id, gen) in gen_data))
-
-    JuMP.@constraint(pm.model, H_sys >= H_min)
-    println("H_min after constraint: ", H_min)
-
 end
 
 ################################### End Taiseer Code #########################

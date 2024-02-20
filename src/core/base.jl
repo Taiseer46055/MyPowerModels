@@ -230,10 +230,19 @@ con(pm::AbstractPowerModel, nw::Int, key::Symbol, idx) = _IM.con(pm, pm_it_sym, 
 con(pm::AbstractPowerModel, key::Symbol; nw::Int=nw_id_default) = _IM.con(pm, pm_it_sym, key; nw = nw)
 con(pm::AbstractPowerModel, key::Symbol, idx; nw::Int=nw_id_default) = _IM.con(pm, pm_it_sym, key, idx; nw = nw)
 
+# add sol component value functions
+
+#sol(pm::AbstractPowerModel, key::Symbol, value::Any; nw = nw_id_default) = _IM.sol(pm, key; nw = nw)
+#sol(pm::AbstractPowerModel, nw::Int64, key::Symbol, value::Any) = _IM.sol(pm, nw, key, value)
+#sol(pm::AbstractPowerModel, key::Symbol; nw = nw_id_default) = _IM.sol(pm, key; nw = nw)
+
+################################
+
 sol(pm::AbstractPowerModel, nw::Int=nw_id_default) = _IM.sol(pm, pm_it_sym; nw = nw)
 sol(pm::AbstractPowerModel, nw::Int, key::Symbol) = _IM.sol(pm, pm_it_sym, nw, key)
 sol(pm::AbstractPowerModel, nw::Int, key::Symbol, idx) = _IM.sol(pm, pm_it_sym, nw, key, idx)
 sol(pm::AbstractPowerModel, key::Symbol; nw::Int=nw_id_default) = _IM.sol(pm, pm_it_sym, key; nw = nw)
 sol(pm::AbstractPowerModel, key::Symbol, idx; nw::Int=nw_id_default) = _IM.sol(pm, pm_it_sym, key, idx; nw = nw)
+
 
 ismultinetwork(pm::AbstractPowerModel) = _IM.ismultinetwork(pm, pm_it_sym)

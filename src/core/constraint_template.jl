@@ -12,13 +12,11 @@
 #
 
 ################################### Start Taiseer Code #########################
-
-using JuMP
-
-function constraint_min_system_inertia(pm::AbstractPowerModel, pg_var::Vector{VariableRef}, gen_id::Int, delta_P::Float64, max_rocof::Float64)
-    constraint_min_system_inertia(pm, pg_var, gen_id, delta_P, max_rocof)
+#=
+function constraint_system_inertia(pm::AbstractPowerModel, gen_id::Int64, P_load::Float64, rocof::Float64)
+    constraint_system_inertia(pm, gen_id, P_load, rocof)
 end
-
+=#
 ################################### End Taiseer Code #########################
 
 ### Voltage Constraints ###
