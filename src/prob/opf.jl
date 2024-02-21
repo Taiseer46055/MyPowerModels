@@ -56,7 +56,7 @@ function solve_opf_inertia(file, model_type::Type, optimizer, options; kwargs...
 end
 
 # Custom build function for OPF that includes standard constraints and additional inertia constraints.
-function build_opf_H_min(options::Dict{String, Dict{K, Any} where K})
+function build_opf_H_min(options::Dict{String, Dict{String}})
     # Define a function to build the OPF model.
     function build_my_opf(pm::AbstractPowerModel)
         # Extract data from the power model
@@ -64,6 +64,7 @@ function build_opf_H_min(options::Dict{String, Dict{K, Any} where K})
         gen_data = ref(pm, :gen)
         load_data = ref(pm, :load)
         f_options = options["f"]
+        v_options = options["v"]
         alpha = f_options["alpha_factor"]
         calc_delta_P = f_options["calc_delta_P"]
         baseMVA = ref(pm, :baseMVA)
@@ -158,6 +159,18 @@ function build_opf_H_min(options::Dict{String, Dict{K, Any} where K})
             if inertia_constraint == "true"
                 println("Add inertia constraints to the model.")
                 constraint_system_inertia(pm, H_min, f_options)
+            end
+        else
+            println("The required variables are not entered. Please check your options.")
+        end
+
+        if(haskey(options, "v"))
+            v_options = options["v"]
+            println("v_options: ", v_options)
+            voltage_constraint = v_options["voltage_constraint"]
+            if voltage_constraint == "true"
+                println("Add voltage constraints to the model.")
+                add_reactive_power_constraints(pm, v_options)
             end
         else
             println("The required variables are not entered. Please check your options.")

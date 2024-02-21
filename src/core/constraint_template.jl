@@ -12,11 +12,15 @@
 #
 
 ################################### Start Taiseer Code #########################
-#=
-function constraint_system_inertia(pm::AbstractPowerModel, gen_id::Int64, P_load::Float64, rocof::Float64)
-    constraint_system_inertia(pm, gen_id, P_load, rocof)
+
+function constraint_system_inertia(pm::AbstractPowerModel, H_min::Float64 , f_options::Dict{String, Any})
+
 end
-=#
+
+function add_reactive_power_constraints!(pm::AbstractPowerModel,v_options::Dict{String, Any})
+
+end
+
 ################################### End Taiseer Code #########################
 
 ### Voltage Constraints ###
