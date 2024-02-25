@@ -1,4 +1,21 @@
 # tools for working with a MyPowerModels data dict structure
+
+################################### Start Taiseer Code #########################
+#=
+function calc_startup_shutdown_cost()
+
+end
+
+function calc_inertia_cost()
+
+end
+
+=#
+
+################################### End Taiseer Code #########################
+
+
+
 import LinearAlgebra: pinv
 
 "MyPowerModels wrapper for the InfrastructureModels `apply!` function."

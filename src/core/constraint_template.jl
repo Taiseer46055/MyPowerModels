@@ -13,13 +13,15 @@
 
 ################################### Start Taiseer Code #########################
 
+#=
 function constraint_system_inertia(pm::AbstractPowerModel, H_min::Float64 , f_options::Dict{String, Any})
 
 end
 
-function add_reactive_power_constraints!(pm::AbstractPowerModel,v_options::Dict{String, Any})
+function constriant_reactive_power(pm::AbstractPowerModel,v_options::Dict{String, Any})
 
 end
+=#
 
 ################################### End Taiseer Code #########################
 
