@@ -1,14 +1,14 @@
 % used in tests of,
 % - sparce SDP implementation, possible cholesky PosDefException
 
-function mpc = case9
+function mpc = case9_02
 mpc.version = '2';
 mpc.baseMVA = 100.0;
 
 %% bus data
 %	bus_i	type	Pd	Qd	Gs	Bs			area	Vm			Va		baseKV	zone	Vmax	Vmin
 mpc.bus = [
-	1	 3	 100.0	 0.0	 0.0	 0.0	 1	    1.00000	    0.00000	 350.0	 1	    1.10000	    0.90000;
+	1	 3	 0.0	 0.0	 0.0	 0.0	 1	    1.00000	    0.00000	 350.0	 1	    1.10000	    0.90000;
 	2	 2	 100.0	 0.0	 0.0	 0.0	 2	    1.00000	    0.00000	 350.0	 1	    1.10000	    0.90000;
 	3	 2	 100.0	 0.0	 0.0	 0.0	 3	    1.00000	    0.00000	 350.0	 1	    1.10000	    0.90000;
 	4	 1	 100.0	 0.0	 0.0	 0.0	 1	    1.00000	    0.00000	 350.0	 1	    1.10000	    0.90000;
@@ -28,10 +28,11 @@ mpc.gen = [
 ];
 
 %% generator cost data
+%	2	startup	shutdown	n	c(n-1)	...	c0
 mpc.gencost = [
-	2	 0.0	 0.0	 2	   4.1	 0.0;
-	2	 0.0	 0.0	 2	   7.3	 0.0;
-	2	 0.0	 0.0	 2	   1.1	 0.0;
+	2	 5000.0	 5000.0	 2	   4.1	 0.0;
+	2	 3000.0	 3000.0	 2	   7.3	 0.0;
+	2	 1000.0	 1000.0	 2	   1.1	 0.0;
 ];
 
 %% branch data
