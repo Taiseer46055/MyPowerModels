@@ -1,7 +1,7 @@
 % used in tests of,
 % - sparce SDP implementation, possible cholesky PosDefException
 
-function mpc = case9
+function mpc = case9_01
 mpc.version = '2';
 mpc.baseMVA = 100.0;
 
@@ -28,10 +28,11 @@ mpc.gen = [
 ];
 
 %% generator cost data
+%	2	startup	shutdown	n	c(n-1)	...	c0
 mpc.gencost = [
-	2	 0.0	 0.0	 2	   4.1	 0.0;
-	2	 0.0	 0.0	 2	   7.3	 0.0;
-	2	 0.0	 0.0	 2	   1.1	 0.0;
+	2	 500.0	 500.0	 2	   4.1	 0.0;
+	2	 300.0	 300.0	 2	   7.3	 0.0;
+	2	 100.0	 100.0	 2	   1.1	 0.0;
 ];
 
 %% branch data
