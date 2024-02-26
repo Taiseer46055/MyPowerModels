@@ -1,7 +1,7 @@
 # Script to post-process the results of the optimization problem
 
 using MyPowerModels
-import MyPowerModels: solve_ac_opf_H_min
+import MyPowerModels: solve_ac_opf_with_inertia, solve_mn_ac_opf_with_inertia
 using PowerModelsAnalytics
 using JuMP
 using Gurobi
@@ -24,6 +24,8 @@ baseMVA = data["baseMVA"]
 
 sol_gen_data = results["gen"]
 sol_bus_data = results["bus"]
+println("sol_gen_data: ", sol_gen_data)
+println("sol_bus_data: ", sol_bus_data)
 
 f_options = options["f"]
 alpha = f_options["alpha_factor"]
@@ -153,17 +155,69 @@ if f_options["area"] == "true" && f_options["disturbance"] == "large"
     end
 end
 
-# Berechnung für gewichtete buses
-buses = collect(keys(H_min_bus))
-h_min_values = [H_min_bus[bus] for bus in buses]
+Pg_values = [
+    [3.0093, 3.0093, 0.0000], # Gen 1 Werte für jeden Fall
+    [0.0000, 0.0000, 3.0093], # Gen 2 Werte für jeden Fall
+    [7.0000, 7.0000, 7.0000], # Gen 3 Werte für jeden Fall
+    [0.0000, 0.0000, 0.0000]  # Gen 4 Werte für jeden Fall
+]
 
-bar(buses, h_min_values, title="H_min für verschiedene Busse", xlabel="Bus", ylabel="H_min", legend=false)
+Cost_values = [
+    [2407.43, 2407.43, 0.0000], # Kosten für Gen 1 in jedem Fall
+    [0.0000, 0.0000, 3009.28],  # Kosten für Gen 2 in jedem Fall
+    [3500.00, 3500.00, 3500.00],# Kosten für Gen 3 in jedem Fall
+    [0.0000, 0.0000, 0.0000]    # Kosten für Gen 4 in jedem Fall
+]
 
-#=
-# Berechnung für gewichtete areas
-areas = collect(keys(H_min_area))
-h_min_values = [H_min_area[area] for area in areas]
+H_sys_values = [0.000, 5.19, 6.75]
+H_area_values = [0.000, 5.0, 5.0]
 
-bar(areas, h_min_values, title="H_min für verschiedene Areas", xlabel="Area", ylabel="H_min", legend=false)
+cases = ["unit commetment", "uc with H_sys", "uc with H_sys and H_area"]
+gen_ids = ["Gen 1", "Gen 2", "Gen 3", "Gen 4"]
 
-=#
+p1 = plot(size=(800, 600), title="active power for each generator and case")
+p2 = plot(size=(800, 600), title="cost for each generator and case")
+p3 = plot(size=(800, 600), title="H_sys and H_min values for each case")
+
+
+num_generators = length(Pg_values) 
+bar_width = 0.2
+spacing = 0.1 
+group_spacing = bar_width + spacing 
+
+positions = [(i-1)*(3*group_spacing) + j*group_spacing for i=1:num_generators, j=1:3]
+
+
+for (gen_index, pg_values_gen) in enumerate(Pg_values)
+    x_positions = positions[gen_index, :]
+    bar!(p1, x_positions, pg_values_gen, label=gen_ids[gen_index], bar_width=bar_width)
+end
+
+for (gen_index, cost_values_gen) in enumerate(Cost_values)
+    x_positions = positions[gen_index, :]
+    bar!(p2, x_positions, cost_values_gen, label=gen_ids[gen_index], bar_width=bar_width)
+end
+
+xlabel!(p1, "Generator")
+ylabel!(p1, "active power [MW]")
+xlabel!(p2, "Generator")
+ylabel!(p2, "cost in [€]")
+
+tick_positions = [(i-1)*(3*group_spacing) + 2*group_spacing for i=1:num_generators]
+
+xticks!(p1, tick_positions, gen_ids)
+xticks!(p2, tick_positions, gen_ids)
+
+H_sys_positions = [(i-1)*group_spacing + 1.5bar_width for i=1:length(cases)]
+H_min_positions = [(i-1)*group_spacing + 2.5*bar_width for i=1:length(cases)]
+
+bar!(p3, H_sys_positions, H_sys_values, label="H_sys", bar_width=0.5*bar_width)
+bar!(p3, H_area_positions, H_area_values, label="H_min", bar_width=0.5*bar_width)
+
+xlabel!(p3, "Fall")
+ylabel!(p3, "H value in s")
+
+tick_positions = [(i-1)*group_spacing + 1.5*bar_width for i=1:length(cases)]
+xticks!(p3, tick_positions, cases)
+
+plot(p1, p2, p3, layout=(3, 1), size=(800, 600))
