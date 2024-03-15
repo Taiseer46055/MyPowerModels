@@ -4,6 +4,42 @@
 # for branches flows and bus flow conservation
 ###############################################################################
 
+################################### Start Taiseer Code #########################
+
+# constraint for the startup and shutdown of generators
+function constraint_startup_shutdown(pm::AbstractPowerModel,  i::Int64; nw::Int=nw_id_default)
+
+    z = var(pm, nw, :z_gen)[i]
+
+    current_status = z
+    println("current_status nw_$nw gen_$i: ", current_status)
+    if nw == 1 && z != 0
+        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == current_status)
+        # JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == 0)
+    end
+    if nw > 1    
+        z_prev = var(pm, nw-1, :z_gen)[i]
+        previous_status = z_prev
+        println("previous_status nw_$(nw-1) gen_$i: ", previous_status)
+        println("current_status nw_$nw gen_$i: ", current_status)
+    
+        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] >= current_status - previous_status)
+        # JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] >= previous_status - current_status)
+    end
+
+end
+
+# constraint for generator expansion 
+function constraint_gen_expansion(pm::AbstractPowerModel, i::Int64; nw::Int=nw_id_default)
+    ex = var(pm, nw, :ex)[i]
+    ex_cap = var(pm, nw, :ex_cap)[i]
+    JuMP.@constraint(pm.model, ex >= 0)
+    
+end
+
+################################### End Taiseer Code #########################
+
+
 "checks if a sufficient number of variables exist for the given keys collection"
 function _check_var_keys(vars, keys, var_name, comp_name)
     if length(vars) < length(keys)

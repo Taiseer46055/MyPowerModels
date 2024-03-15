@@ -242,14 +242,17 @@ end
 function solve_mn_opf_inertia(file, model_type, optimizer, options; kwargs...)
 
     model_builder = build_mn_opf_inertia(model_type, options)
-    return solve_model(file, model_type, optimizer, model_builder ;ref_extensions=[ref_add_connected_components!], multinetwork=true, kwargs...)
+    return solve_model(file, model_type, optimizer, model_builder ;ref_extensions=[ref_add_connected_components!], multinetwork=false, kwargs...)
+
 end
+
 
 function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{String}})
     # Define a function to build the OPF model for each network.
     function build_my_mn_opf_inertia(pm::AbstractPowerModel)
         # Iterate through each network
-        for (n, network) in nws(pm)
+        for n in sort(collect(keys(nws(pm))))
+            network = nws(pm)[n]
             # Extract data from the current network in the power model
             gen_data = ref(pm, n, :gen)
             load_data = ref(pm, n, :load)
@@ -305,7 +308,14 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
     
             variable_branch_power(pm, nw=n)
             variable_dcline_power(pm, nw=n)
-        
+
+            variable_startup_shutdown(pm, nw = n)
+            
+            for i in ids(pm, :gen, nw=n)
+                constraint_startup_shutdown(pm, i, nw = n)
+            # constraint_mn_min_up_down_time(pm, n)
+            end
+
             constraint_model_voltage(pm, nw=n)
 
 
@@ -377,15 +387,16 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
     
             pm.data["H_min"] = pm.ext[:H_min]
             pm.data["delta_P"] = pm.ext[:delta_P]
+
+            
         end
-        objective_min_fuel_and_flow_cost(pm)
+        #objective_min_fuel_and_flow_cost(pm)
+
+        objective_min_fuel_and_flow_with_startup_shutdown_cost(pm)
 
     end
     return build_my_mn_opf_inertia
 end
-
-
-
 
 
 
