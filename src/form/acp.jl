@@ -144,6 +144,60 @@ function constraint_system_inertia(pm::AbstractACPModel, H_min::Float64 , f_opti
     end
 end
 
+function constraint_gen_startup_shutdown(pm::AbstractACPModel, n::Int64)
+    #=
+    for i in ids(pm, n, :gen)
+        su = pm.var[:startup][i]
+        sd = pm.var[:shutdown][i]
+        min_up_time = pm.data[:min_up_time][i]
+        min_down_time = pm.data[:min_down_time][i]
+        T = length(pm.data[:t])
+
+        JuMP.@constraint(pm.model, su + sd <= 1) # Einschränkung, dass nur ein Wert von su oder sd gleich 1 sein kann
+        JuMP.@constraint(pm.model, [i in ids(pm, n, :gen), t in 2:T], su[i,t] - sd[i,t] == su[i,t-1] - sd[i,t-1]) # Einschränkung, dass su und sd nur um 1 erhöht oder verringert werden können
+        JuMP.@constraint(pm.model, [i in ids(pm, n, :gen)], su[i] => min_up_time[i]) # Einschränkung, dass su mindestens min_up_time[i] Zeitschritte lang 1 sein muss
+        JuMP.@constraint(pm.model, [i in ids(pm, n, :gen)], sd[i] => min_down_time[i]) # Einschränkung, dass sd mindestens min_down_time[i] Zeitschritte lang 1 sein muss
+
+    end
+    =#	
+end
+
+function constraint_mn_gen_status(pm::AbstractPowerModel, n::Int64)
+    T = length(nws(pm))  
+
+    for t in 1:T
+        for i in ids(pm, n, :gen)
+            if t > 1
+                JuMP.@constraint(pm.model,
+                    pm.var[:gen_status][n, t][i] == pm.var[:gen_status][n, t-1][i] + pm.var[:startup][n, t][i] - pm.var[:shutdown][n, t][i]
+                )
+            end     
+        end
+    end
+end
+
+function constraint_mn_min_up_down_time(pm::AbstractPowerModel, n::Int64)
+    T = length(nws(pm))
+    for i in ids(pm, n, :gen)
+        gen = ref(pm, n, :gen, i)
+        min_up_time = get(gen, "min_up_time", 0)
+        min_down_time = get(gen, "min_down_time", 0)
+
+        for t in 1:(T - min_up_time + 1)
+            JuMP.@constraint(pm.model,
+                sum(pm.var[:startup][n, t+k][i] for k in 0:(min_up_time-1)) <= pm.var[:gen_status][n, t][i]
+            )
+        end
+
+        for t in 1:(T - min_down_time + 1)
+            JuMP.@constraint(pm.model,
+                sum(pm.var[:shutdown][n, t+k][i] for k in 0:(min_down_time-1)) <= 1 - pm.var[:gen_status][n, t+min_down_time-1][i]
+            )
+        end
+    end
+end
+
+
 function constriant_reactive_power(pm::AbstractACPModel, v_options::Dict{String, String}, n::Int64)
 
     reactive_power_limit = v_options["reactive_power_limit"]
