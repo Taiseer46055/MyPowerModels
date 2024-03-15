@@ -6,43 +6,67 @@
 
 ################################### Start Taiseer Code #########################
 
-#=
-function calculate_P_gen_bus(pm::AbstractACPModel)
-    gen_data = ref(pm, :gen)
-    pg = var(pm, :pg)
-    P_gen_bus = Dict()
-    for j in keys(ref(pm, :bus))
-        P_gen_bus[j] = sum(value(pg[i]) for i in keys(pg) if gen_data[i]["gen_bus"] == j)
+function variable_startup_shutdown(pm::AbstractPowerModel; nw::Int=nw_id_default, relax::Bool=false, report::Bool=true)
+    if !relax
+        su = var(pm, nw)[:su] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_su",
+            binary = true
+        )
+        sd = var(pm, nw)[:sd] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_sd",
+            binary = true
+        )
+    else
+        su = var(pm, nw)[:su] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_su",
+            lower_bound = 0,
+            upper_bound = 1)
+        
+        sd = var(pm, nw)[:sd] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_sd",
+            lower_bound = 0,
+            upper_bound = 1
+        )
     end
-    println("In variabel.jl ist P_gen_bus: ", P_gen_bus)
-    return P_gen_bus
+
+    report && begin
+        sol_component_value(pm, nw, :gen, :gen_startup, ids(pm, nw, :gen), su)
+        sol_component_value(pm, nw, :gen, :gen_shutdown, ids(pm, nw, :gen), sd)
+    end
 end
 
+# indicates whether or not a new generation will be built at a location in a certain time period.
 
-
-function calculate_P_gen_bus(pm::AbstractACPModel)
-    bus_data = ref(pm, :bus)
-    gen_data = ref(pm, :gen)
-    pg = var(pm, :pg)
-    P_gen_bus = Dict()
-
-    for j in keys(bus_data)
-        P_gen_bus[j] = 0
-        if 1 <= j <= 4
-            for i in keys(gen_data)
-                if gen_data[i]["index"] == j 
-                    P_gen_bus[j] += JuMP.value(pg[i])
-                end
-            end
-        end
+function bin_variable_generator_expansion(pm::AbstractPowerModel; nw::Int=nw_id_default, relax::Bool=false, report::Bool=true)
+    if !relax
+        ex = var(pm, nw)[:ex] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="gen_expansion",
+            binary = true
+        )
+    else
+        ex = var(pm, nw)[:ex] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="gen_expansion",
+            lower_bound = 0,
+            upper_bound = 1
+        )
     end
+
+    report && sol_component_value(pm, nw, :gen, :gen_expansion, ids(pm, nw, :gen), ex)
     
-    return P_gen_bus
+end
+
+# discrete variable for generator expansion (0, 0.25, 0.5, 0.75, 1) from p_max. Available capacity of the generating unit
+function discrete_variable_generator_expansion( pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
+    ex_cap = var(pm, nw)[:ex_cap] = JuMP.@variable(pm.model,
+        [i in ids(pm, nw, :gen)], base_name="gen_expansion_capacity",
+        lower_bound = 0,
+        upper_bound = 1
+    )
+    report && sol_component_value(pm, nw, :gen, :gen_expansion_capacity, ids(pm, nw, :gen), ex_cap)
+    
 end
 
 
-
-=#
 ################################### End Taiseer Code #########################
 
 

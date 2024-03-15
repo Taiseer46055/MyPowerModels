@@ -3,7 +3,7 @@
 ################################### Start Taiseer Code #########################
 
 
-function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options::Dict{String, Any})
+function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options::Dict{String, Any}, n::Int64)
 
     # Extract options from the provided dictionary
     #println(options)
@@ -18,7 +18,7 @@ function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options
     # Reference data from the power model
     gen_data = ref(pm, n, :gen)
     load_data = ref(pm, n, :load)
-    baseMVA = ref(pm, :baseMVA)
+    #baseMVA = ref(pm, n, :baseMVA)
     bus_data = ref(pm, n, :bus)
 
     # Define variable for generator status (on/off)
@@ -35,16 +35,20 @@ function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options
     # Calculate the minimum required system inertia (H_min)
     # H_min = (delta_P * f0) / (P_load * 2 * rocof)
     println("H_min: ", H_min)
+
+    # Define a new variable for the scaled system inertia
+    H_sys = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data))
     # Calculate the actual system inertia (H_sys) based on generator data and status
-    H_sys = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data)) / sum(gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data))
-    println("H_sys: ", H_sys)
-    println("Pmax: ", [gen_data[i]["pmax"] for i in eachindex(gen_data)])
-    println("Pmin: ", [gen_data[i]["pmin"] for i in eachindex(gen_data)])
+    #H_sys = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data)) / sum(gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data))
+    #println("H_sys: ", H_sys)
+    #println("Pmax: ", [gen_data[i]["pmax"] for i in eachindex(gen_data)])
+    #println("Pmin: ", [gen_data[i]["pmin"] for i in eachindex(gen_data)])
 
     if system == "true"
         # Apply the system inertia constraint to the model
         println("Adding minimum system inertia constraint to DCPModel")
-        JuMP.@constraint(pm.model, H_sys >= H_min)
+        JuMP.@constraint(pm.model, H_sys >= H_min * sum(gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data)))
+        #JuMP.@constraint(pm.model, H_sys >= H_min)
     end
     # Apply constraints based on the type of disturbance
     if disturbance == "small"
@@ -58,10 +62,11 @@ function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options
                 H_area = Dict()
                 # Identify generators and loads within each area
                 gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
-                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0) / sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
                 # Apply area-specific inertia constraints
-                JuMP.@constraint(pm.model, H_area[area] >= H_min)
+                JuMP.@constraint(pm.model, H_area[area] >= H_min *  sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area))
             end
+            #=
         elseif weighted_area == "load"
             # Area-specific inertia constraints
             println("Adding minimum weighted area inertia constraint to DCPModel")
@@ -81,6 +86,27 @@ function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options
             end
             println("sum_H_area_weighted: ", sum_H_area_weighted)
             JuMP.@constraint(pm.model, sum_H_area_weighted >= H_min)
+            =#
+        elseif weighted_area == "load"
+            # Area-specific inertia constraints
+            println("Adding minimum weighted area inertia constraint to DCPModel")
+            areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+            sum_H_area_weighted = 0
+            total_p_max = 0
+
+            for area in areas
+                H_area = Dict()
+                load_sum_area = Dict()
+                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
+                loads_in_area = [i for i in eachindex(load_data) if bus_data[load_data[i]["load_bus"]]["area"] == area]
+                load_sum_area[area] = sum(load_data[i]["pd"] for i in loads_in_area; init=0)
+                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                total_p_max += sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+
+                sum_H_area_weighted  +=  load_sum_area[area] * H_area[area]
+            end
+            
+            JuMP.@constraint(pm.model, sum_H_area_weighted * P_load * total_p_max >= H_min)
 
         elseif weighted_area == "none"
 
@@ -108,11 +134,17 @@ function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options
                 # Calculate load and potential delta_p for each area
                 P_load_area[area] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0)
                 P_gen_area_expr = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_area))
-                delta_p_area[area] = JuMP.@expression(pm.model, abs(P_gen_area_expr - P_load_area[area]))
-                H_min_area[area] = (delta_p_area[area] * f0) / (P_load_area[area] * 2 * rocof)
-                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0) / sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                #delta_p_area[area] = JuMP.@expression(pm.model, abs(P_gen_area_expr - P_load_area[area]))
+                u_area = JuMP.@variable(pm.model, [area], base_name="u_area", lower_bound=0)
+                # Replace the abs function with two linear inequalities
+                JuMP.@constraint(pm.model, P_gen_area_expr - P_load_area[area] <= u_area[area])
+                JuMP.@constraint(pm.model, P_load_area[area] - P_gen_area_expr <= u_area[area])
+                # Use the new variable in the calculation of delta_p_area
+                delta_p_area[area] = u_area[area]
+                H_min_area[area] = (delta_p_area[area] * f0)
+                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
                 # Apply area-specific inertia constraints
-                JuMP.@constraint(pm.model, H_area[area] >= H_min_area[area])
+                JuMP.@constraint(pm.model, H_area[area] *  (P_load_area[area] * 2 * rocof) >= H_min_area[area] * sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area))
             end
         end
 
@@ -129,21 +161,113 @@ function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options
             pg = var(pm, n, :pg)
 
             for j in keys(bus_data)
-                P_gen_bus_exprs[j] = JuMP.@expression(pm.model, sum(pg[i] for (i, gen) in ref(pm, :gen) if gen["gen_bus"] == j))
+                P_gen_bus_exprs[j] = JuMP.@expression(pm.model, sum(pg[i] for (i, gen) in ref(pm, n, :gen) if gen["gen_bus"] == j))
                 P_load_bus[j] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] == j; init=0)
-                delta_p_bus[j] = JuMP.@expression(pm.model, abs(P_gen_bus_exprs[j] - P_load_bus[j]))
-                H_min_bus[j] = (delta_p_bus[j] * f0) / (P_load_bus[j] * 2 * rocof)
+                #delta_p_bus[j] = JuMP.@expression(pm.model, abs(P_gen_bus_exprs[j] - P_load_bus[j]))
+                u_bus = JuMP.@variable(pm.model, [j], base_name="u_bus", lower_bound=0)
+                # Replace the abs function with two linear inequalities
+                JuMP.@constraint(pm.model, P_gen_bus_exprs[j] - P_load_bus[j] <= u_bus[j])
+                JuMP.@constraint(pm.model, P_load_bus[j] - P_gen_bus_exprs[j] <= u_bus[j])
+                # Use the new variable in the calculation of delta_p_bus
+                delta_p_bus[j] = u_bus[j]
+                H_min_bus[j] = (delta_p_bus[j] * f0)
                 println("H_min_bus $j = ", H_min_bus[j])
-                H_bus[j] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j; init=0) / sum(gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j; init=0)
+                H_bus[j] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j; init=0)
                 println("H_bus $j = ", H_bus[j])
                 # Apply bus-specific inertia constraints
-                JuMP.@constraint(pm.model, H_bus[j] >= H_min_bus[j])
+                JuMP.@constraint(pm.model, H_bus[j] * (P_load_bus[j] * 2 * rocof) >= H_min_bus[j] *  sum(gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j))
             end
         end
     end
 end
 
-function constriant_reactive_power(pm::DCPPowerModel, n::Int,v_options::Dict{String, String})
+
+
+function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
+    T = length(nws(pm))
+
+    for i in ids(pm, n, :gen)
+        gen = ref(pm, n, :gen, i)
+        startup_cost_value = gen["startup"]
+        
+        # Bestimme Mindestlauf- und Stillstandszeiten basierend auf den Startkosten
+        if startup_cost_value <= 100
+            min_su_time = 1
+            min_sd_time = 0
+        elseif startup_cost_value <= 200
+            min_su_time = 2
+            min_sd_time = 1
+        else
+            min_su_time = 4
+            min_sd_time = 2
+        end
+
+        # Erstelle dynamisch Constraints für Mindestlaufzeiten
+        if min_su_time > 0
+            for t in 1:(T - min_su_time + 1)
+                su_expr = JuMP.@expression(pm.model, sum(pm.var[:startup][n, t + k - 1][i] for k in 1:min_su_time))
+                JuMP.@constraint(pm.model, su_expr <= min_su_time * pm.var[:gen_status][n, t + min_su_time - 1][i])
+            end
+        end
+
+        # Erstelle dynamisch Constraints für Mindeststillstandszeiten, falls min_sd_time > 0
+        if min_sd_time > 0
+            for t in 1:(T - min_sd_time)
+                sd_expr = JuMP.@expression(pm.model, sum(pm.var[:shutdown][n, t + k][i] for k in 1:min_sd_time))
+                JuMP.@constraint(pm.model, sd_expr <= min_sd_time * (1 - pm.var[:gen_status][n, t + min_sd_time][i]))
+            end
+        end
+    end
+end
+
+
+#=
+function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
+    T = length(nws(pm))
+
+    for t in 2:T
+        for i in ids(pm, n, :gen)
+            gen = ref(pm, n, :gen, i)
+            startup_cost_value = gen["startup"]
+            if startup_cost_value <= 100
+                min_su_time = 1
+                min_sd_time = 0
+            elseif startup_cost_value <= 200
+                min_su_time = 2
+                min_sd_time = 1
+            else
+                min_su_time = 4
+                min_sd_time = 2
+            end
+
+            if min_su_time > 0
+                su_keys = [t+k-1 for k in 1:min_su_time if t+k-1 <= T]
+                if !isempty(su_keys)
+                    su_expr = JuMP.@expression(pm.model, sum(pm.var[:startup][n, key][i] for key in su_keys; init=0))
+                    JuMP.@constraint(pm.model, su_expr <= pm.var[:gen_status][n, t][i])
+                    #println("  Startup-Ausdruck für t: $t, Gen: $i: $su_expr")
+
+                end
+            end
+
+            if min_sd_time > 0
+                sd_keys = [t+k for k in 1:min_sd_time if t+k <= T]
+                if !isempty(sd_keys)
+                    sd_expr = JuMP.@expression(pm.model, sum(pm.var[:shutdown][n, key][i] for key in sd_keys; init=0))
+                    JuMP.@constraint(pm.model, sd_expr <= 1 - pm.var[:gen_status][n, t+min_sd_time-1][i])
+                    #println("  Shutdown-Ausdruck für t: $t, Gen: $i: $sd_expr")
+
+                end
+            end
+        end
+    end
+end
+
+
+
+
+
+function constriant_reactive_power(pm::DCPPowerModel,v_options::Dict{String, String}, n::Int64)
  
     reactive_power_limit = v_options["reactive_power_limit"]
     max_rvc = v_options["max_rvc"]
@@ -174,7 +298,7 @@ function constriant_reactive_power(pm::DCPPowerModel, n::Int,v_options::Dict{Str
    
 end
 
-
+=#
 
 
 

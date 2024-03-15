@@ -30,6 +30,233 @@ function check_nl_dcline_cost_models(pm::AbstractPowerModel)
     return false
 end
 
+################################### Start Taiseer Code #########################
+function objective_min_fuel_and_flow_with_startup_shutdown_cost(pm::AbstractPowerModel; kwargs...)
+
+    expression_pg_cost(pm; kwargs...)
+    expression_p_dc_cost(pm; kwargs...)
+    expression_startup_shutdown_cost(pm; kwargs...)
+    
+    total_cost = sum(
+        sum(ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
+        ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
+        ref(pm, n, :gen, i)["cost"][1] * var(pm, n, :pg, i)
+        for (i, gen) in nw_ref[:gen]) +
+        sum(ref(pm, n, :dcline, i)["cost"][1] * var(pm, n, :p_dc, i) for (i, dcline) in nw_ref[:dcline]; init=0)
+    for (n, nw_ref) in nws(pm))
+
+    println("Total Cost: $total_cost")
+
+    return JuMP.@objective(pm.model, Min, total_cost)
+end
+
+"adds startup_shutdown_cost variables and constraints"
+function expression_startup_shutdown_cost(pm::AbstractPowerModel; report::Bool=true)
+    for (n, nw_ref) in nws(pm)
+        startup_cost_var = var(pm, n)[:startup_cost] = Dict{Int,Any}()
+        shutdown_cost_var = var(pm, n)[:shutdown_cost] = Dict{Int,Any}()
+
+        for (i,gen) in ref(pm, n, :gen)
+            startup_cost = ref(pm, n, :gen, i)["startup"] * var(pm, n, :su, i)
+            shutdown_cost = ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd, i)
+
+            startup_cost_var[i] = startup_cost
+            shutdown_cost_var[i] = shutdown_cost
+        end
+
+        report && sol_component_value(pm, n, :gen, :startup_cost, ids(pm, n, :gen), startup_cost_var)
+        report && sol_component_value(pm, n, :gen, :shutdown_cost, ids(pm, n, :gen), shutdown_cost_var)
+    end
+end
+
+
+function objective_with_generator_expansion(pm::AbstractPowerModel; kwargs...)
+
+    expression_pg_cost(pm; kwargs...)
+    expression_p_dc_cost(pm; kwargs...)
+    expression_startup_shutdown_cost(pm; kwargs...)
+
+    expansion_cost = sum(
+        sum(ref(pm, n, :gen, i)["inv_cost"] * var(pm, n, :ex)[i] +
+            ref(pm, n, :gen, i)["op_cost"] * var(pm, n, :ex_cap)[i]
+        for (i, gen) in nw_ref[:gen])
+    for (n, nw_ref) in nws(pm))
+
+    total_cost = sum(
+        sum(ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
+        ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
+        ref(pm, n, :gen, i)["cost"][1] * var(pm, n, :pg, i)
+        for (i, gen) in nw_ref[:gen]) +
+        sum(ref(pm, n, :dcline, i)["cost"][1] * var(pm, n, :p_dc, i) for (i, dcline) in nw_ref[:dcline]; init=0)
+    for (n, nw_ref) in nws(pm)) + expansion_cost
+
+    return JuMP.@objective(pm.model, Min, total_cost)
+end
+
+# +  ref(pm, n, :gen, i)["cost"][1] * var(pm, n, :pg, i)
+
+#=
+
+function objective_min_fuel_and_flow_with_startup_shutdown_cost(pm::AbstractPowerModel; kwargs...)
+
+    expression_pg_cost(pm; kwargs...)
+    expression_p_dc_cost(pm; kwargs...)
+    
+    total_cost = sum(
+        sum(
+            if n == 1
+                ref(pm, n, :gen, i)["startup"] * pm.var[:z_gen][n][i] + 
+                ref(pm, n, :gen, i)["shutdown"] * 0 + 
+                ref(pm, n, :gen, i)["cost"][1] * var(pm, n, :pg, i)
+            else
+                ref(pm, n, :gen, i)["startup"] * max(0, pm.var[:z_gen][n][i] - pm.var[:z_gen][n-1][i]) + 
+                ref(pm, n, :gen, i)["shutdown"] * max(0, pm.var[:z_gen][n-1][i] - pm.var[:z_gen][n][i]) + 
+                ref(pm, n, :gen, i)["cost"][1] * var(pm, n, :pg, i)
+            end
+        for (i, gen) in nw_ref[:gen]) +
+        sum(ref(pm, n, :dcline, i)["cost"][1] * var(pm, n, :p_dc, i) for (i, dcline) in nw_ref[:dcline]; init=0)
+    for (n, nw_ref) in nws(pm))
+
+    println("Total Cost: $total_cost")
+
+    return JuMP.@objective(pm.model, Min, total_cost)
+end
+=#
+
+
+#=
+function objective_min_fuel_and_flow_with_startup_shutdown_cost(pm::AbstractPowerModel; kwargs...)
+
+    nl_gen = check_nl_gen_cost_models(pm)
+    nl_dc = check_nl_dcline_cost_models(pm)
+
+    nl = nl_gen || nl_dc || typeof(pm) <: AbstractIVRModel
+
+    expression_pg_cost(pm; kwargs...)
+    expression_p_dc_cost(pm; kwargs...)
+
+    JuMP.@objective(pm.model, Min,
+    sum(
+        sum(var(pm, n, :pg_cost, i) for (i, gen) in nw_ref[:gen]) +
+        sum(var(pm, n, :p_dc_cost, i) for (i, dcline) in nw_ref[:dcline]) +
+        sum(ref(pm, n, :gen, i)["startup"] * pm.var[:su][n][i] for i in ids(pm, n, :gen)) +
+        sum(ref(pm, n, :gen, i)["shutdown"] * pm.var[:sd][n][i] for i in ids(pm, n, :gen)))
+    for (n, nw_ref) in nws(pm))
+
+end
+=#
+
+
+
+#=
+function objective_min_fuel_and_flow_with_startup_shutdown_cost(pm::AbstractPowerModel; kwargs...)
+    nl_gen = check_nl_gen_cost_models(pm)
+    nl_dc = check_nl_dcline_cost_models(pm)
+    nl = nl_gen || nl_dc || typeof(pm) <: AbstractIVRModel
+
+    expression_pg_cost(pm; kwargs...)
+    expression_p_dc_cost(pm; kwargs...)
+    for (n, nw_ref) in nws(pm)
+        for (i, gen) in nw_ref[:gen]
+            startup_cost = gen["startup"]
+            shutdown_cost = gen["shutdown"]
+            println("Netzwerk $n, Generator $i: Startup-Kosten = $startup_cost, Shutdown-Kosten = $shutdown_cost")
+        end
+    end
+
+    if !nl
+        JuMP.@objective(pm.model, Min,
+            sum(
+                sum( var(pm, n,   :pg_cost, i) for (i,gen) in nw_ref[:gen]) +
+                sum( var(pm, n, :p_dc_cost, i) for (i,dcline) in nw_ref[:dcline]) +
+                sum( gen["startup"] * pm.var[:startup][i] for (i,gen) in nw_ref[:gen]) +
+                sum( gen["shutdown"] * pm.var[:shutdown][i] for (i,gen) in nw_ref[:gen])
+            for (n, nw_ref) in nws(pm))
+        )
+    else
+
+        JuMP.@NLobjective(pm.model, Min,
+            sum(
+                sum( pg_cost[n,i] for (i,gen) in nw_ref[:gen]) +
+                sum( p_dc_cost[n,i] for (i,dcline) in nw_ref[:dcline]) +
+                sum( gen["startup"] * pm.var[:startup][i] for (i,gen) in nw_ref[:gen]) +
+                sum( gen["shutdown"] * pm.var[:shutdown][i] for (i,gen) in nw_ref[:gen])
+            for (n, nw_ref) in nws(pm))
+        )
+    end
+end
+
+function expression_su_sd_cost(pm::AbstractPowerModel; report::Bool=true)
+
+    total_startup_expr = Dict()
+    total_shutdown_expr = Dict()
+    # T = the lenth of the multi network
+    T = length(nws(pm))
+
+
+    for t in 1:T
+        total_startup_expr[t] = JuMP.@expression(pm.model, 0)
+        total_shutdown_expr[t] = JuMP.@expression(pm.model, 0)
+
+        for (n, nw_ref) in nws(pm)
+            for i in ids(pm, n, :gen)
+                gen = ref(pm, n, :gen, i)
+                su_var = get(pm.var[:startup][n, t], i, nothing)
+                sd_var = get(pm.var[:shutdown][n, t], i, nothing)
+                if su_var !== nothing && sd_var !== nothing
+                    su_cost_expr = gen["startup"] * su_var
+                    sd_cost_expr = gen["shutdown"] * sd_var
+                    total_startup_expr[t] += su_cost_expr
+                    total_shutdown_expr[t] += sd_cost_expr
+                end
+            end
+        end
+    end
+
+    pm.ext[:total_startup_costs_expr] = total_startup_expr
+    pm.ext[:total_shutdown_costs_expr] = total_shutdown_expr
+end
+
+
+
+
+function objective_min_fuel_and_flow_with_startup_shutdown_cost(pm::AbstractPowerModel; kwargs...)
+    nl_gen = check_nl_gen_cost_models(pm)
+    nl_dc = check_nl_dcline_cost_models(pm)
+    nl = nl_gen || nl_dc || typeof(pm) <: AbstractIVRModel
+
+    expression_pg_cost(pm; kwargs...)
+    expression_p_dc_cost(pm; kwargs...)
+    expression_su_sd_cost(pm; kwargs...)
+
+    total_startup_costs_expr = pm.ext[:total_startup_costs_expr]
+    total_shutdown_costs_expr = pm.ext[:total_shutdown_costs_expr]
+
+    if !nl
+
+        total_cost_expr = JuMP.@expression(pm.model,
+        sum(
+            sum( var(pm, n,   :pg_cost, i) for (i,gen) in nw_ref[:gen]) +
+            sum( var(pm, n, :p_dc_cost, i) for (i,dcline) in nw_ref[:dcline])
+        for (n, nw_ref) in nws(pm))+
+            total_startup_costs_expr + total_shutdown_costs_expr
+        )
+        JuMP.@objective(pm.model, Min, total_cost_expr)
+    else
+  
+        JuMP.@NLobjective(pm.model, Min,
+        sum(
+            sum( pg_cost[n,i] for (i,gen) in nw_ref[:gen]) +
+            sum( p_dc_cost[n,i] for (i,dcline) in nw_ref[:dcline])
+        for (n, nw_ref) in nws(pm))+
+            total_startup_costs_expr + total_shutdown_costs_expr
+        )
+    end
+end
+
+=#
+
+################################### End Taiseer Code #########################
 
 ""
 function objective_min_fuel_and_flow_cost(pm::AbstractPowerModel; kwargs...)

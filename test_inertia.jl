@@ -6,36 +6,62 @@ using Plots
 using Ipopt
 using Juniper
 using JLD
+using JLD2
+using GLPK
+using SCIP
+using Cbc
 
 
+
+#=
 mn_data = Dict("nw" => Dict(), "multinetwork" => true, "per_unit" => true)
 
-for i in 1:1
+for i in 1:3
     filename = ".\\test\\data\\matpower\\case9_"  * lpad(i, 2, "0") * ".m"
     network_value = MyPowerModels.parse_file(filename)
     mn_data["nw"][string(i)] = network_value
 end
+=#
 
-netz = ".\\test\\data\\matpower\\case2.m"
+case_name = "case2"
+case_name
+netz = ".\\test\\data\\matpower\\$case_name.m"
 data = MyPowerModels.parse_file(netz)
 
+mn_data = MyPowerModels.replicate(data, 24)
+#last_profile = [0.8, 1.5, 1.2]
+last_profile = [0.7, 0.7, 0.7, 0.7, 0.7, 1.1, 1.3, 1.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 1.5, 1.5, 1.3, 1.3, 0.9, 0.9, 0.9, 0.9, 0.7]
+
+function update_load_data!(mn_data, last_profile)
+    network_keys = sort(collect(keys(mn_data["nw"])))
+    for (n, key) in enumerate(network_keys)
+        network = mn_data["nw"][key]
+        for load in values(network["load"])
+             load["pd"] *= last_profile[n]
+        end
+    end
+end
+
+
+
+update_load_data!(mn_data, last_profile)
 
 minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
 options = Dict( 
     "f" => Dict(
-        "inertia_constraint"=> "false", 
+        "inertia_constraint"=> "true", 
         "system" => "true",
-        "disturbance" => "small", # "small", "large" 
+        "disturbance" => "large", # "small", "large" 
         "weighted_area" => "none", # "load", "equal", "none"
         "area" => "false", 
-        "bus" => "false", 
-        "calc_delta_P" => [4,200], # "internal" or array of [gen_id, delta_P in MW]
+        "bus" => "true", 
+        "calc_delta_P" => [1,250], # "internal" or array of [gen_id, delta_P in MW]
         "alpha_factor" => 0.1, # [0, 1]
         "rocof" => 1.0
     ), 
     "v" => Dict(
-        "voltage_constraint" => "true",
-        "reactive_power_limit" => "true",
+        "voltage_constraint" => "false",
+        "reactive_power_limit" => "false",
         "max_rvc" => "false",    # rapid voltage change
         "max_pas" => "false",    # phase angle shift
         "area" => "false",
@@ -43,35 +69,35 @@ options = Dict(
     )
 )
 
-result_sn = solve_ac_opf_with_inertia(data, ACPPowerModel, minlp_solver, options)
-#result_mn = solve_mn_ac_opf_with_inertia(mn_data, ACPPowerModel, minlp_solver, options, multinetwork=true)
-results = result_sn["solution"]
+# result_sn = solve_ac_opf_with_inertia(data, DCPPowerModel, Gurobi.Optimizer, options)
+# results = result_sn["solution"]
+result_mn = solve_mn_ac_opf_with_inertia(mn_data, DCPPowerModel, Gurobi.Optimizer , options, multinetwork=true)
+results = result_mn["solution"]
 
 
 
-function save_results(results)
+# Save the results
+results_filename = Dict()
+data_filename = Dict()
+options_filename = Dict()
+
+
+function save_results(case_name, results, results_filename, data_filename, options_filename)
     if "nw" in keys(results)
-        # Speichern Sie die Ergebnisse für Multi Network
-        for n in keys(results["nw"])
-            println("Ergebnisse für Netzwerk $n:")
+        println(" save the result for the case $case_name")
 
-            local gen_data = results["nw"][n]["gen"]
-            local bus_data = results["nw"][n]["bus"]
-            local branch_data = results["nw"][n]["branch"]
+        results_filename[case_name] = "results\\multi_network_results\\results_$case_name.jld2"
+        data_filename[case_name] = "results\\multi_network_results\\data_$case_name.jld2"
+        options_filename[case_name] = "results\\multi_network_results\\options_$case_name.jld2"
 
-            results_filename[n] = "results_$n.jld"
-            data_filename[n] = "data_$n.jld"
-            options_filename[n] = "options_$n.jld"
+        network_keys = sort([parse(Int, key) for key in keys(results["nw"])])
+        sorted_results = Dict(string(key) => results["nw"][string(key)] for key in network_keys)
 
-            JLD.save(results_filename[n], "results", results["nw"][n])
-            JLD.save(data_filename[n], "data", data["nw"][n])
-            JLD.save(options_filename[n], "options", options)
-        end
+        JLD2.save(results_filename[case_name], "results", sorted_results)
+        JLD2.save(data_filename[case_name], "data", mn_data)
+        JLD2.save(options_filename[case_name], "options", options)
     else
-        # Speichern Sie die Ergebnisse für Single Network
         local gen_data = results["gen"]
-        local bus_data = results["bus"]
-        local branch_data = results["branch"]
 
         pg_values = Dict()
         for (gen_id, gen_attrs) in gen_data
@@ -82,21 +108,17 @@ function save_results(results)
             println("Generator $gen_id: Pg = $pg_value")
         end
 
+        results_filename[case_name] = "results\\single_network_results\\results_$case_name.jld2"
+        data_filename[case_name] = "results\\single_network_results\\data_$case_name.jld2"
+        options_filename[case_name] = "results\\single_network_results\\options_$case_name.jld2"
 
-        results_filename = "results.jld"
-        data_filename = "data.jld"
-        options_filename = "options.jld"
-
-        JLD.save(results_filename, "results", results)
-        JLD.save(data_filename, "data", data)
-        JLD.save(options_filename, "options", options)
+        JLD2.save(results_filename[case_name], "results", results)
+        JLD2.save(data_filename[case_name], "data", data)
+        JLD2.save(options_filename[case_name], "options", options)
     end
 end
 
-
-save_results(results)
-
-
+save_results(case_name, results, results_filename, data_filename, options_filename)
 #=
 # Plot the network connections
 
