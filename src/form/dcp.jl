@@ -181,7 +181,31 @@ function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options
     end
 end
 
+# constraint for max active blocks per generator
+function constraint_max_active_blocks(pm::AbstractPowerModel; nw::Int=nw_id_default)
+    gen_data = ref(pm, nw, :gen)
+    n_E = pm.ext[:n_E]
+    n_a = var(pm, nw, :n_a)
 
+    for (i, gen_attrs) in gen_data
+        if gen_attrs["state"] == 1
+            JuMP.@constraint(pm.model, n_a[i] <= n_E[i])
+        end
+    end
+end
+
+# constraint for min inertia with generator expansion
+function constraint_inertia_with_generator_expansion(pm::DCPPowerModel, H_min::Float64; nw::Int=nw_id_default)
+
+    n_a = var(pm, nw, :n_a)
+    gen_data = ref(pm, nw, :gen)
+    z = var(pm, nw, :z_gen)
+
+    JuMP.@constraint(pm.model, sum(gen_data[i]["H"] * gen_data[i]["pmax"] * n_a[i] for (i, _) in gen_data if gen_data[i]["state"] == 1) +
+    sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in keys(gen_data)if gen_data[i]["state"] == 0) >= H_min * (sum(gen_data[i]["pmax"] * n_a[i] for i in keys(gen_data) if gen_data[i]["state"] == 1) +
+    sum(gen_data[i]["pmax"] * z[i] for i in keys(gen_data)if gen_data[i]["state"] == 0)))
+
+end
 
 function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
     T = length(nws(pm))
@@ -190,7 +214,6 @@ function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
         gen = ref(pm, n, :gen, i)
         startup_cost_value = gen["startup"]
         
-        # Bestimme Mindestlauf- und Stillstandszeiten basierend auf den Startkosten
         if startup_cost_value <= 100
             min_su_time = 1
             min_sd_time = 0
@@ -202,7 +225,6 @@ function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
             min_sd_time = 2
         end
 
-        # Erstelle dynamisch Constraints für Mindestlaufzeiten
         if min_su_time > 0
             for t in 1:(T - min_su_time + 1)
                 su_expr = JuMP.@expression(pm.model, sum(pm.var[:startup][n, t + k - 1][i] for k in 1:min_su_time))
@@ -210,7 +232,6 @@ function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
             end
         end
 
-        # Erstelle dynamisch Constraints für Mindeststillstandszeiten, falls min_sd_time > 0
         if min_sd_time > 0
             for t in 1:(T - min_sd_time)
                 sd_expr = JuMP.@expression(pm.model, sum(pm.var[:shutdown][n, t + k][i] for k in 1:min_sd_time))
@@ -220,53 +241,7 @@ function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
     end
 end
 
-
 #=
-function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
-    T = length(nws(pm))
-
-    for t in 2:T
-        for i in ids(pm, n, :gen)
-            gen = ref(pm, n, :gen, i)
-            startup_cost_value = gen["startup"]
-            if startup_cost_value <= 100
-                min_su_time = 1
-                min_sd_time = 0
-            elseif startup_cost_value <= 200
-                min_su_time = 2
-                min_sd_time = 1
-            else
-                min_su_time = 4
-                min_sd_time = 2
-            end
-
-            if min_su_time > 0
-                su_keys = [t+k-1 for k in 1:min_su_time if t+k-1 <= T]
-                if !isempty(su_keys)
-                    su_expr = JuMP.@expression(pm.model, sum(pm.var[:startup][n, key][i] for key in su_keys; init=0))
-                    JuMP.@constraint(pm.model, su_expr <= pm.var[:gen_status][n, t][i])
-                    #println("  Startup-Ausdruck für t: $t, Gen: $i: $su_expr")
-
-                end
-            end
-
-            if min_sd_time > 0
-                sd_keys = [t+k for k in 1:min_sd_time if t+k <= T]
-                if !isempty(sd_keys)
-                    sd_expr = JuMP.@expression(pm.model, sum(pm.var[:shutdown][n, key][i] for key in sd_keys; init=0))
-                    JuMP.@constraint(pm.model, sd_expr <= 1 - pm.var[:gen_status][n, t+min_sd_time-1][i])
-                    #println("  Shutdown-Ausdruck für t: $t, Gen: $i: $sd_expr")
-
-                end
-            end
-        end
-    end
-end
-
-
-
-
-
 function constriant_reactive_power(pm::DCPPowerModel,v_options::Dict{String, String}, n::Int64)
  
     reactive_power_limit = v_options["reactive_power_limit"]
@@ -299,9 +274,6 @@ function constriant_reactive_power(pm::DCPPowerModel,v_options::Dict{String, Str
 end
 
 =#
-
-
-
 
 ################################### End Taiseer Code #########################
 

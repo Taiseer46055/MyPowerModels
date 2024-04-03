@@ -12,7 +12,6 @@ function constraint_startup_shutdown(pm::AbstractPowerModel,  i::Int64; nw::Int=
     z = var(pm, nw, :z_gen)[i]
 
     current_status = z
-    println("current_status nw_$nw gen_$i: ", current_status)
     if nw == 1 && z != 0
         JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == current_status)
         # JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == 0)
@@ -20,23 +19,44 @@ function constraint_startup_shutdown(pm::AbstractPowerModel,  i::Int64; nw::Int=
     if nw > 1    
         z_prev = var(pm, nw-1, :z_gen)[i]
         previous_status = z_prev
-        println("previous_status nw_$(nw-1) gen_$i: ", previous_status)
-        println("current_status nw_$nw gen_$i: ", current_status)
-    
+
         JuMP.@constraint(pm.model, var(pm, nw, :su)[i] >= current_status - previous_status)
         # JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] >= previous_status - current_status)
     end
 
 end
 
-# constraint for generator expansion 
-function constraint_gen_expansion(pm::AbstractPowerModel, i::Int64; nw::Int=nw_id_default)
-    ex = var(pm, nw, :ex)[i]
-    ex_cap = var(pm, nw, :ex_cap)[i]
-    JuMP.@constraint(pm.model, ex >= 0)
-    
+"on/off constraint for generators"
+function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, n::Int, i::Int, pmin, pmax)
+
+    pg = var(pm, n, :pg, i)
+    n_a = var(pm, n, :n_a)[i]
+
+    JuMP.@constraint(pm.model, pg <= pmax * n_a)
+    JuMP.@constraint(pm.model, pg >= pmin * n_a)
 end
 
+#=
+function constraint_pot_gen_power_on_off(pm::AbstractPowerModel, pot_gens; nw::Int=nw_id_default)
+
+    pg_pot = pm.ext[:pg_pot]
+    qg_pot = pm.ext[:qg_pot]
+    n_a = var(pm, nw, :n_a)
+    
+    for (gen_id, gen_attrs) in pot_gens
+        pmin = gen_attrs["pg_min"]
+        pmax = gen_attrs["pg_max"]
+        qmin = gen_attrs["qg_min"]
+        qmax = gen_attrs["qg_max"]
+
+        JuMP.@constraint(pm.model, pg_pot[gen_id] <= pmax*n_a[gen_id])
+        JuMP.@constraint(pm.model, pg_pot[gen_id] >= pmin*n_a[gen_id])
+        JuMP.@constraint(pm.model, qg_pot[gen_id] <= qmax*n_a[gen_id])
+        JuMP.@constraint(pm.model, qg_pot[gen_id] >= qmin*n_a[gen_id])
+    end
+end
+
+=#
 ################################### End Taiseer Code #########################
 
 

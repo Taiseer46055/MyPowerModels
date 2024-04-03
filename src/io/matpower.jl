@@ -56,6 +56,9 @@ const _mp_gen_columns = [
     ("gen_status", Int),
     ("pmax", Float64), ("pmin", Float64),
     ("H", Float64),
+    ("num_blocks", Int),
+    ("state", Int),
+    ("investment", Float64),
     ("pc1", Float64),
     ("pc2", Float64),
     ("qc1min", Float64), ("qc1max", Float64),
@@ -67,6 +70,7 @@ const _mp_gen_columns = [
     ("apf", Float64),
     ("mu_pmax", Float64), ("mu_pmin", Float64),
     ("mu_qmax", Float64), ("mu_qmin", Float64)
+
 ]
 
 const _mp_branch_columns = [
@@ -315,6 +319,7 @@ function _mp_cost_data(cost_row)
         "model" => model,
         "startup" => _IM.check_type(Float64, cost_row[2]),
         "shutdown" => _IM.check_type(Float64, cost_row[3]),
+        "investment" => _IM.check_type(Float64, cost_row[9]),
         "ncost" => ncost,
         "cost" => [_IM.check_type(Float64, x) for x in cost_row[5:5+nr_parameters-1]]
     )
@@ -833,7 +838,7 @@ function export_matpower(io::IO, data::Dict{String,Any})
 
     # Print the generator data
     println(io, "%% generator data")
-    println(io, "%    bus    Pg    Qg    Qmax    Qmin    Vg    mBase    status    Pmax    Pmin    Pc1    Pc2    Qc1min    Qc1max    Qc2min    Qc2max    ramp_agc    ramp_10    ramp_30    ramp_q    apf")
+    println(io, "%    bus    Pg    Qg    Qmax    Qmin    Vg    mBase    status    Pmax    Pmin    Pc1    Pc2    Qc1min    Qc1max    Qc2min    Qc2max    ramp_agc    ramp_10    ramp_30    ramp_q    apf     H   num_blocks  state  investment")
     println(io, "mpc.gen = [")
     i = 1
     for (idx,gen) in sort(collect(generators), by=(x) -> x.first)
@@ -866,6 +871,10 @@ function export_matpower(io::IO, data::Dict{String,Any})
             "\t", _get_default(gen, "mu_pmin", ""),
             "\t", _get_default(gen, "mu_qmax", ""),
             "\t", _get_default(gen, "mu_qmin", ""),
+            "\t", _get_default(gen, "H", ""),
+            "\t", _get_default(gen, "num_blocks", ""),
+            "\t", _get_default(gen, "state", ""),
+            "\t", _get_default(gen, "investment", ""),
         )
         i = i+1
     end
@@ -1059,7 +1068,7 @@ function export_matpower(io::IO, data::Dict{String,Any})
     _export_extra_data(io, data, "bus", Set(["index", "source_id", "gs", "bs", "zone", "bus_i", "bus_type", "qd",  "vmax", "area", "vmin", "va", "vm", "base_kv", "pd", "name", "lam_p", "lam_q", "mu_vmax", "mu_vmin"]); postfix="_data")
 
     # Print the extra generator data
-    _export_extra_data(io, data, "gen", Set(["index", "source_id", "gen_bus", "pg", "qg", "qmax", "qmin", "vg", "mbase", "gen_status", "pmax", "pmin", "pc1", "pc2", "qc1min", "qc1max", "qc2min", "qc2max", "ramp_agc", "ramp_10", "ramp_30", "ramp_q", "apf", "ncost", "model", "shutdown", "startup", "cost", "mu_pmax", "mu_pmin", "mu_qmax", "mu_qmin"]); postfix="_data")
+    _export_extra_data(io, data, "gen", Set(["index", "source_id", "gen_bus", "pg", "qg", "qmax", "qmin", "vg", "mbase", "gen_status", "pmax", "pmin", "pc1", "pc2", "qc1min", "qc1max", "qc2min", "qc2max", "ramp_agc", "ramp_10", "ramp_30", "ramp_q", "apf", "ncost", "model", "shutdown", "startup", "cost", "mu_pmax", "mu_pmin", "mu_qmax", "mu_qmin", "H", "num_blocks", "state", "investment"]); postfix="_data")
 
     # Print the extra storage data
     _export_extra_data(io, data, "storage", Set(["index", "source_id", "storage_bus", "ps", "qs", "energy", "energy_rating", "charge_rating", "discharge_rating", "charge_efficiency", "discharge_efficiency", "thermal_rating", "qmin", "qmax", "r", "x", "p_loss", "q_loss", "status"]); postfix="_data")
