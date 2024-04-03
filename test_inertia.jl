@@ -1,3 +1,7 @@
+# Author: Taiseer Alhaj Ali
+# Created: 2024-06-15
+
+
 using MyPowerModels
 using PowerModelsAnalytics
 using JuMP
@@ -12,25 +16,15 @@ using SCIP
 using Cbc
 
 
-
-#=
-mn_data = Dict("nw" => Dict(), "multinetwork" => true, "per_unit" => true)
-
-for i in 1:3
-    filename = ".\\test\\data\\matpower\\case9_"  * lpad(i, 2, "0") * ".m"
-    network_value = MyPowerModels.parse_file(filename)
-    mn_data["nw"][string(i)] = network_value
-end
-=#
-
 case_name = "case2"
 case_name
-netz = ".\\test\\data\\matpower\\$case_name.m"
-data = MyPowerModels.parse_file(netz)
+grid = ".\\test\\data\\matpower\\$case_name.m"
+data = MyPowerModels.parse_file(grid)
 
-mn_data = MyPowerModels.replicate(data, 24)
-#last_profile = [0.8, 1.5, 1.2]
-last_profile = [0.7, 0.7, 0.7, 0.7, 0.7, 1.1, 1.3, 1.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 1.5, 1.5, 1.3, 1.3, 0.9, 0.9, 0.9, 0.9, 0.7]
+mn_data = MyPowerModels.replicate(data, 3)
+last_profile = [0.9, 1.0, 1.2]
+#last_profile = [2.8, 2.9, 2.8]
+#last_profile = [0.7, 0.7, 0.7, 0.7, 0.7, 1.1, 1.3, 1.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 1.5, 1.5, 1.3, 1.3, 0.9, 0.9, 0.9, 0.9, 0.7]
 
 function update_load_data!(mn_data, last_profile)
     network_keys = sort(collect(keys(mn_data["nw"])))
@@ -41,23 +35,48 @@ function update_load_data!(mn_data, last_profile)
         end
     end
 end
-
-
-
 update_load_data!(mn_data, last_profile)
+
+
+# define potential_generators for generator expansion planning
+pot_gens = Dict(
+    "Gen_1" => Dict("pg_min" => 50.0, "pg_max" => 5000.0, "qg_min" => -50.0, "qg_max" => 50.0, "investment_cost" => 2000000, "operating_cost" => 10,"H" => 8.0, "num_blocks" => 4),
+    "Gen_2" => Dict("pg_min" => 20.0, "pg_max" => 2000.0, "qg_min" => -50.0, "qg_max" => 50.0, "investment_cost" => 1000000, "operating_cost" => 10,"H" => 5.0 , "num_blocks" => 5),
+
+)
+#=
+function add_gen_exp_data!(mn_data, pot_gens)
+    network_keys = sort(collect(keys(mn_data["nw"])))
+    for (n, key) in enumerate(network_keys)
+        network = mn_data["nw"][key]
+        # Create a new dictionary 'gen_exp' if it doesn't exist
+        if !haskey(network, "gen_exp")
+            network["gen_exp"] = Dict()
+        end
+        # Add pot_gens to 'gen_exp'
+        for (gen_id, gen_attrs) in pot_gens
+            if !haskey(network["gen_exp"], gen_id)
+                network["gen_exp"][gen_id] = gen_attrs
+            end
+        end
+    end
+end
+
+add_gen_exp_data!(mn_data, potential_generators) 
+=#
 
 minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
 options = Dict( 
     "f" => Dict(
-        "inertia_constraint"=> "true", 
-        "system" => "true",
-        "disturbance" => "large", # "small", "large" 
+        "inertia_constraint"=> "false", 
+        "system" => "false",
+        "disturbance" => "small", # "small", "large" 
         "weighted_area" => "none", # "load", "equal", "none"
         "area" => "false", 
-        "bus" => "true", 
-        "calc_delta_P" => [1,250], # "internal" or array of [gen_id, delta_P in MW]
+        "bus" => "false",
+        "calc_delta_P" => [1,50], # "internal" or array of [gen_id, delta_P in MW]
         "alpha_factor" => 0.1, # [0, 1]
-        "rocof" => 1.0
+        "rocof" => 1.0,
     ), 
     "v" => Dict(
         "voltage_constraint" => "false",
@@ -69,13 +88,14 @@ options = Dict(
     )
 )
 
-# result_sn = solve_ac_opf_with_inertia(data, DCPPowerModel, Gurobi.Optimizer, options)
+# result_sn = solve_opf_with_inertia(data, DCPPowerModel, Gurobi.Optimizer, options)
 # results = result_sn["solution"]
-result_mn = solve_mn_ac_opf_with_inertia(mn_data, DCPPowerModel, Gurobi.Optimizer , options, multinetwork=true)
+# result_mn = solve_mn_opf_with_inertia(mn_data, DCPPowerModel, Gurobi.Optimizer , options, multinetwork=true)
+# results = result_mn["solution"]
+m = Model()
+result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel,  Gurobi.Optimizer, options, jump_model=m; multinetwork=true)
 results = result_mn["solution"]
-
-
-
+println(m)
 # Save the results
 results_filename = Dict()
 data_filename = Dict()
