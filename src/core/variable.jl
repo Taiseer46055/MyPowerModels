@@ -35,37 +35,134 @@ function variable_startup_shutdown(pm::AbstractPowerModel; nw::Int=nw_id_default
     end
 end
 
-# indicates whether or not a new generation will be built at a location in a certain time period.
+function variable_expansion_blocks_global(pm::AbstractPowerModel ;  report::Bool=true)
 
-function bin_variable_generator_expansion(pm::AbstractPowerModel; nw::Int=nw_id_default, relax::Bool=false, report::Bool=true)
-    if !relax
-        ex = var(pm, nw)[:ex] = JuMP.@variable(pm.model,
-            [i in ids(pm, nw, :gen)], base_name="gen_expansion",
-            binary = true
-        )
-    else
-        ex = var(pm, nw)[:ex] = JuMP.@variable(pm.model,
-            [i in ids(pm, nw, :gen)], base_name="gen_expansion",
-            lower_bound = 0,
-            upper_bound = 1
-        )
+    if !haskey(pm.ext, :n_E)
+        pm.ext[:n_E] = Dict()
     end
-
-    report && sol_component_value(pm, nw, :gen, :gen_expansion, ids(pm, nw, :gen), ex)
+    gen_data = ref(pm, 1, :gen)
     
+    for (i, gen_attrs) in gen_data
+        if gen_attrs["state"] == 1
+            pm.ext[:n_E][i] = JuMP.@variable(pm.model, 
+                base_name = "n_E_$(i)", 
+                start = 0,
+                lower_bound = 0, 
+                upper_bound = gen_attrs["num_blocks"],
+                integer = true
+            )
+        end
+    end
+    if report
+        sol_component_value(pm, 1, :gen, :n_E, ids(pm, 1, :gen), pm.ext[:n_E])
+    end
 end
 
-# discrete variable for generator expansion (0, 0.25, 0.5, 0.75, 1) from p_max. Available capacity of the generating unit
-function discrete_variable_generator_expansion( pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
-    ex_cap = var(pm, nw)[:ex_cap] = JuMP.@variable(pm.model,
-        [i in ids(pm, nw, :gen)], base_name="gen_expansion_capacity",
-        lower_bound = 0,
-        upper_bound = 1
+
+function variable_generator_expansion_active_blocks(pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
+    var(pm, nw)[:n_a] = Dict()
+    gen_data = ref(pm, nw, :gen)
+    active_gen_ids = Dict()
+    for (i, gen_attrs) in gen_data
+        if gen_attrs["state"] == 1
+            var(pm, nw)[:n_a][i] = JuMP.@variable(pm.model, 
+                base_name = "n_a_$(i)",
+                lower_bound = 0, 
+                upper_bound = gen_attrs["num_blocks"],
+                integer = true
+            )
+            active_gen_ids[i] = true
+        end
+    end
+    report && begin
+        sol_component_value(pm, nw, :gen, :n_a, keys(active_gen_ids), var(pm, nw)[:n_a])
+    end
+end
+
+function variable_gen_power_on_off_with_gen_exp(pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
+    gen_data = ref(pm, nw, :gen)
+    var(pm, nw)[:pg] = Dict()
+    
+    for i in ids(pm, nw, :gen)
+        if gen_data[i]["state"] == 0
+            pg_var = JuMP.@variable(pm.model, base_name="pg_$(i)", 
+                                    lower_bound=min(0, gen_data[i]["pmin"]),
+                                    upper_bound=max(0, gen_data[i]["pmax"]),
+                                    start=comp_start_value(gen_data[i], "pg_start"))
+        elseif gen_data[i]["state"] == 1
+            pg_var = JuMP.@variable(pm.model, base_name="pg_$(i)",
+                                    start=comp_start_value(gen_data[i], "pg_start"))
+        end
+        var(pm, nw)[:pg][i] = pg_var
+    end
+    if report
+        sol_component_value(pm, nw, :gen, :pg, ids(pm, nw, :gen), var(pm, nw)[:pg])
+    end
+end
+
+
+#=
+function variable_gen_power_limits(pm::AbstractPowerModel; nw::Int=nw_id_default)
+    gen_data = ref(pm, nw, :gen)
+    n_a = var(pm, nw, :n_a)
+
+    for (i, gen_attrs) in gen_data
+        if gen_attrs["state"] == 1
+
+            new_pmax = gen_attrs["pmax"] * n_a[i]
+            new_pmin = gen_attrs["pmin"] * n_a[i]
+            new_qmax = gen_attrs["qmax"] * n_a[i]
+            new_qmin = gen_attrs["qmin"] * n_a[i]
+
+            gen_data[i]["pmax"] = new_pmax
+            gen_data[i]["pmin"] = new_pmin
+            gen_data[i]["qmax"] = new_qmax
+            gen_data[i]["qmin"] = new_qmin
+
+        end
+    end
+end
+
+
+function variable_pot_gen_power(pm::AbstractPowerModel; kwargs...)
+    variable_pot_gen_power_real(pm, pot_gens; kwargs...)
+    variable_pot_gen_power_imaginary(pm, pot_gens; kwargs...)
+
+end
+
+function variable_pot_gen_power_real(pm::AbstractPowerModel, pot_gens; nw::Int=nw_id_default, bounded::Bool=true)
+
+    pg_pot = JuMP.@variable(pm.model,
+        [gen_id in keys(gen_data)], base_name="$(nw)_pg_pot",
+        start = 0 
     )
-    report && sol_component_value(pm, nw, :gen, :gen_expansion_capacity, ids(pm, nw, :gen), ex_cap)
-    
+    pm.ext[:pg_pot] = pg_pot
+
+    if bounded
+        for (gen_id, gen_attrs) in gen_data
+            JuMP.set_lower_bound(pg_pot[gen_id], gen_attrs["pg_min"])
+            JuMP.set_upper_bound(pg_pot[gen_id], gen_attrs["pg_max"])
+        end
+    end
 end
 
+function variable_pot_gen_power_imaginary(pm::AbstractPowerModel, pot_gens; nw::Int=nw_id_default, bounded::Bool=true)
+
+    qg_pot = JuMP.@variable(pm.model,
+        [gen_id in keys(gen_data)], base_name="$(nw)_qg_pot",
+        start = 0 
+    )
+    pm.ext[:qg_pot] = qg_pot
+
+    if bounded
+        for (gen_id, gen_attrs) in gen_data
+            JuMP.set_lower_bound(qg_pot[gen_id], gen_attrs["qg_min"])
+            JuMP.set_upper_bound(qg_pot[gen_id], gen_attrs["qg_max"])
+        end
+    end
+end
+
+=#
 
 ################################### End Taiseer Code #########################
 
@@ -460,7 +557,6 @@ function variable_gen_power_imaginary_on_off(pm::AbstractPowerModel; nw::Int=nw_
 
     report && sol_component_value(pm, nw, :gen, :qg, ids(pm, nw, :gen), qg)
 end
-
 
 
 ""

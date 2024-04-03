@@ -13,15 +13,13 @@
 
 ################################### Start Taiseer Code #########################
 
-#=
-function constraint_system_inertia(pm::AbstractPowerModel, H_min::Float64 , f_options::Dict{String, Any})
 
+function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, i::Int; nw::Int=nw_id_default)
+    gen = ref(pm, nw, :gen, i)
+
+    constraint_gen_exp_power_on_off(pm, nw, i, gen["pmin"], gen["pmax"])
 end
 
-function constriant_reactive_power(pm::AbstractPowerModel,v_options::Dict{String, Any})
-
-end
-=#
 
 ################################### End Taiseer Code #########################
 
