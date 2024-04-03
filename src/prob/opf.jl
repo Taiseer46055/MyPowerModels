@@ -503,7 +503,7 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             H_min = (delta_P * f0) / (P_load * 2 * rocof)
     
             variable_bus_voltage(pm, nw=n)
-            if gen_data[1]["state"] == 0
+            if gen_data[1]["state"] == 0 # is the [1] correct?
                 variable_gen_indicator(pm, nw=n)
             end
             #variable_gen_indicator(pm, nw=n)
