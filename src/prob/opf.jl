@@ -503,11 +503,20 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             H_min = (delta_P * f0) / (P_load * 2 * rocof)
     
             variable_bus_voltage(pm, nw=n)
+            variable_gen_power_on_off(pm, nw=n)
+            
+            variable_gen_indicator_with_expansion(pm, nw=n)
+            variable_gen_expansion_blocks(pm, nw=n)
+
+            #=
             if gen_data[1]["state"] == 0
                 variable_gen_indicator(pm, nw=n)
             end
-            #variable_gen_indicator(pm, nw=n)
-            #variable_gen_power_on_off(pm, nw=n)
+           
+            variable_gen_indicator(pm, nw=n)
+            =#
+            # variable_gen_power_on_off(pm, nw=n)
+            
     
             variable_storage_indicator(pm, nw=n)
             variable_storage_power_mi_on_off(pm, nw=n)
@@ -517,13 +526,13 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
 
             variable_startup_shutdown(pm, nw = n)
 
-            variable_expansion_blocks_global(pm)
-            variable_generator_expansion_active_blocks(pm, nw = n)
-            variable_gen_power_on_off_with_gen_exp(pm, nw = n)
+            # variable_expansion_blocks_global(pm)
+            # variable_generator_expansion_active_blocks(pm, nw = n)
+            # variable_gen_power_on_off_with_gen_exp(pm, nw = n)
             # variable_gen_power_limits(pm, nw = n)
 
-            constraint_max_active_blocks(pm, nw = n)
-            
+            #constraint_max_active_blocks(pm, nw = n)
+            #=
             for i in ids(pm, :gen, nw=n)
                 if gen_data[i]["state"] == 0
                     constraint_gen_power_on_off(pm, i, nw=n)
@@ -532,7 +541,17 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
                     constraint_gen_exp_power_on_off(pm, i, nw=n)
                 end
             end
+            =#
+
+            for i in ids(pm, :gen, nw=n)
+                constraint_gen_exp_indicator(pm, i, nw=n)
+                constraint_gen_expansion_blocks(pm, i, nw = n)
+                constraint_nE_consistency(pm, i, nw = n)
+                constraint_gen_exp_power_on_off(pm, i, nw = n)
+            end
             
+
+
             constraint_model_voltage(pm, nw=n)
 
 
@@ -541,12 +560,9 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             end
 
             for i in ids(pm, :gen, nw=n)
-                if gen_data[i]["state"] == 0
-                    constraint_startup_shutdown(pm, i, nw=n)
-                elseif gen_data[i]["state"] == 1
-
-                end
+                constraint_startup_shutdown(pm, i, nw=n)
             end
+    
             
             for i in ids(pm, :storage, nw=n)
                 constraint_storage_on_off(pm, i, nw=n)

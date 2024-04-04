@@ -35,6 +35,33 @@ function variable_startup_shutdown(pm::AbstractPowerModel; nw::Int=nw_id_default
     end
 end
 
+function variable_gen_indicator_with_expansion(pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
+
+    z_gen = var(pm, nw)[:z_gen] = JuMP.@variable(pm.model,
+    [i in ids(pm, nw, :gen)], base_name="$(nw)_z_gen",
+    lower_bound = 0,
+    upper_bound = ref(pm, nw, :gen, i)["nE_max"],
+    integer = true,
+    start = comp_start_value(ref(pm, nw, :gen, i), "z_gen_start", ref(pm, nw, :gen, i)["n0"])
+    )
+    report && sol_component_value(pm, nw, :gen, :gen_status, ids(pm, nw, :gen), z_gen)
+end
+
+
+function variable_gen_expansion_blocks(pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
+
+    nE = var(pm, nw)[:nE] = JuMP.@variable(pm.model,
+        [i in ids(pm, nw, :gen)], base_name="$(nw)_nE",
+        lower_bound = 0,
+        upper_bound = ref(pm, nw, :gen, i)["nE_max"],
+        integer = true
+
+    )
+    report && sol_component_value(pm, nw, :gen, :nE, ids(pm, nw, :gen), nE)
+end
+    
+
+#=
 function variable_expansion_blocks_global(pm::AbstractPowerModel ;  report::Bool=true)
 
     if !haskey(pm.ext, :n_E)
@@ -100,8 +127,6 @@ function variable_gen_power_on_off_with_gen_exp(pm::AbstractPowerModel; nw::Int=
     end
 end
 
-
-#=
 function variable_gen_power_limits(pm::AbstractPowerModel; nw::Int=nw_id_default)
     gen_data = ref(pm, nw, :gen)
     n_a = var(pm, nw, :n_a)
@@ -515,7 +540,7 @@ function variable_gen_indicator(pm::AbstractPowerModel; nw::Int=nw_id_default, r
     if !relax
         z_gen = var(pm, nw)[:z_gen] = JuMP.@variable(pm.model,
             [i in ids(pm, nw, :gen)], base_name="$(nw)_z_gen",
-            binary = true,
+            integer = true,
             start = comp_start_value(ref(pm, nw, :gen, i), "z_gen_start", 1.0)
         )
     else
@@ -528,6 +553,7 @@ function variable_gen_indicator(pm::AbstractPowerModel; nw::Int=nw_id_default, r
     end
 
     report && sol_component_value(pm, nw, :gen, :gen_status, ids(pm, nw, :gen), z_gen)
+
 end
 
 

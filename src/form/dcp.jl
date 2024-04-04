@@ -181,6 +181,9 @@ function constraint_system_inertia(pm::DCPPowerModel, H_min::Float64 , f_options
     end
 end
 
+
+
+#=
 # constraint for max active blocks per generator
 function constraint_max_active_blocks(pm::AbstractPowerModel; nw::Int=nw_id_default)
     gen_data = ref(pm, nw, :gen)
@@ -193,19 +196,63 @@ function constraint_max_active_blocks(pm::AbstractPowerModel; nw::Int=nw_id_defa
         end
     end
 end
+=#
 
 # constraint for min inertia with generator expansion
 function constraint_inertia_with_generator_expansion(pm::DCPPowerModel, H_min::Float64; nw::Int=nw_id_default)
 
-    n_a = var(pm, nw, :n_a)
     gen_data = ref(pm, nw, :gen)
     z = var(pm, nw, :z_gen)
 
+    JuMP.@constraint(pm.model, sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data)) >= H_min * sum(gen_data[i]["pmax"] * z[i] for i in keys(gen_data)))
+
+    #=
     JuMP.@constraint(pm.model, sum(gen_data[i]["H"] * gen_data[i]["pmax"] * n_a[i] for (i, _) in gen_data if gen_data[i]["state"] == 1) +
     sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in keys(gen_data)if gen_data[i]["state"] == 0) >= H_min * (sum(gen_data[i]["pmax"] * n_a[i] for i in keys(gen_data) if gen_data[i]["state"] == 1) +
     sum(gen_data[i]["pmax"] * z[i] for i in keys(gen_data)if gen_data[i]["state"] == 0)))
+    =#
+end
+function constraint_gen_exp_indicator(pm::DCPPowerModel, i::Int64; nw::Int=nw_id_default)
+    nE = var(pm, nw, :nE)
+    z = var(pm, nw, :z_gen)
+    JuMP.@constraint(pm.model, z[i] <= nE[i])
+end
+
+ function constraint_gen_expansion_blocks(pm::AbstractPowerModel, i::Int64; nw::Int=nw_id_default)
+
+    nE = var(pm, nw, :nE) 
+    gen_data = ref(pm, nw, :gen)
+    nE_max = gen_data[i]["nE_max"]
+    n0 = gen_data[i]["n0"]
+
+    JuMP.@constraint(pm.model, n0 <= nE[i] <= nE_max)
 
 end
+
+
+function constraint_nE_consistency(pm::AbstractPowerModel, i::Int64; nw::Int=nw_id_default)
+
+    if haskey(var(pm, nw), :nE)
+        println("Netzwerk $nw: :nE existiert.")
+    else
+        println("Netzwerk $nw: :nE existiert NICHT.")
+    end
+    
+
+    ref_nw = first(sort(collect(keys(nws(pm)))))
+    println("ref_nw: ", ref_nw)
+    # gen_ids = ids(pm, :gen, nw=ref_nw)
+    ref_nE_var = var(pm, ref_nw, :nE)
+    
+    ref_nE = ref_nE_var[i]
+    if nw != ref_nw        
+        current_nE = var(pm, nw, :nE)[i]
+        JuMP.@constraint(pm.model, current_nE == ref_nE)
+    end
+    
+    
+end
+
 
 function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
     T = length(nws(pm))
@@ -241,7 +288,7 @@ function constraint_mn_min_up_down_time(pm::DCPPowerModel, n::Int64)
     end
 end
 
-#=
+
 function constriant_reactive_power(pm::DCPPowerModel,v_options::Dict{String, String}, n::Int64)
  
     reactive_power_limit = v_options["reactive_power_limit"]
@@ -273,7 +320,7 @@ function constriant_reactive_power(pm::DCPPowerModel,v_options::Dict{String, Str
    
 end
 
-=#
+
 
 ################################### End Taiseer Code #########################
 

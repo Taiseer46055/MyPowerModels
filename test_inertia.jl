@@ -22,8 +22,8 @@ grid = ".\\test\\data\\matpower\\$case_name.m"
 data = MyPowerModels.parse_file(grid)
 
 mn_data = MyPowerModels.replicate(data, 3)
-last_profile = [0.9, 1.0, 1.2]
-#last_profile = [2.8, 2.9, 2.8]
+#last_profile = [0.9, 1.0, 1.2]
+last_profile = [2.8, 2.9, 2.8]
 #last_profile = [0.7, 0.7, 0.7, 0.7, 0.7, 1.1, 1.3, 1.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 1.5, 1.5, 1.3, 1.3, 0.9, 0.9, 0.9, 0.9, 0.7]
 
 function update_load_data!(mn_data, last_profile)
@@ -95,7 +95,8 @@ options = Dict(
 m = Model()
 result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel,  Gurobi.Optimizer, options, jump_model=m; multinetwork=true)
 results = result_mn["solution"]
-println(m)
+#println(m)
+
 # Save the results
 results_filename = Dict()
 data_filename = Dict()

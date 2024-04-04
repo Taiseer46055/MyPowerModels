@@ -71,17 +71,17 @@ function expression_startup_shutdown_cost(pm::AbstractPowerModel; report::Bool=t
 end
 
 function expression_investment_cost(pm::AbstractPowerModel; report::Bool=true)
-    investment_cost = 0
+    investment_cost = Dict()
     
-    n_E = pm.ext[:n_E]
-    gen_data = ref(pm, 1, :gen)
-    
-    for (i, gen) in gen_data
-        if gen["state"] == 1
-            investment_cost += n_E[i] * gen["investment"]
-        end
+    for (n, nw_ref) in nws(pm)
+        gen_data = ref(pm, n, :gen)
+        
+        for (i, gen) in gen_data
+            investment_cost[i] = (var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"]
+            end
+        report && sol_component_value(pm, n, :gen, :investment_cost, ids(pm, n, :gen), investment_cost)
     end
-    return investment_cost
+
 end
 
 
@@ -92,9 +92,6 @@ function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerMo
     expression_startup_shutdown_cost(pm; kwargs...)
     expression_investment_cost(pm; kwargs...)
 
-    n_E = pm.ext[:n_E]
-    gen_data = ref(pm, 1, :gen)
-
     # operating cost for generators and dclines
     operational_cost = sum(
         sum(ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
@@ -103,8 +100,13 @@ function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerMo
         sum(var(pm, n, :p_dc_cost, i) for (i,dcline) in nw_ref[:dcline]; init=0)
             for (n, nw_ref) in nws(pm)
         )
-    # investment cost for generators
-    investment_cost = sum(n_E[i] * gen["investment"]  for (i, gen) in gen_data if gen["state"] == 1)
+
+    investment_cost = sum(
+        sum((var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"] 
+        for (i, gen) in nw_ref[:gen]) for (n, nw_ref) in nws(pm)
+    )/length(nws(pm))
+    
+    println("Investment Cost: ", investment_cost)
     total_cost =  investment_cost + operational_cost
     println("Total Cost: ", total_cost)
     return JuMP.@objective(pm.model, Min, total_cost)
