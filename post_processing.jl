@@ -228,9 +228,16 @@ if is_multi_network
             for (gen_id, gen) in nw_results["gen"]
                 pg = gen["pg"]
                 pg_cost = gen["pg_cost"]
+                su_cost = gen["startup_cost"]
+                sd_cost = gen["shutdown_cost"]
+                investment_cost = gen["investment_cost"]
                 row[Symbol("PG_$gen_id")] = pg
                 row[Symbol("PG_Cost_$gen_id")] = pg_cost
-                total_cost += pg_cost
+                row[Symbol("SU_Cost_$gen_id")] = su_cost
+                row[Symbol("SD_Cost_$gen_id")] = sd_cost
+                row[Symbol("Investment_Cost_$gen_id")] = investment_cost
+
+                total_cost += pg_cost + su_cost + sd_cost + investment_cost
             end
             row[Symbol("Total_cost")] = total_cost
             row[Symbol("E_I_sys")] = E_I_sys

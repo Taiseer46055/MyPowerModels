@@ -78,12 +78,11 @@ function expression_investment_cost(pm::AbstractPowerModel; report::Bool=true)
         
         for (i, gen) in gen_data
             investment_cost[i] = (var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"]
-            end
+        end
         report && sol_component_value(pm, n, :gen, :investment_cost, ids(pm, n, :gen), investment_cost)
     end
 
 end
-
 
 function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerModel;kwargs...)
 
@@ -106,7 +105,6 @@ function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerMo
         for (i, gen) in nw_ref[:gen]) for (n, nw_ref) in nws(pm)
     )/length(nws(pm))
     
-    println("Investment Cost: ", investment_cost)
     total_cost =  investment_cost + operational_cost
     println("Total Cost: ", total_cost)
     return JuMP.@objective(pm.model, Min, total_cost)

@@ -15,6 +15,10 @@ using GLPK
 using SCIP
 using Cbc
 
+dir = ".\\test\\data\\matpower\\multi_nw"
+case_name = "case2"
+
+
 options = Dict( 
     "f" => Dict(
         "inertia_constraint"=> "true", # "true", "false"
@@ -55,23 +59,63 @@ function update_options!(base_options, case_options)
         end
     end
 end
-function main()
-    case_name = "case2"
-    grid = ".\\test\\data\\matpower\\$case_name.m"
-    data = MyPowerModels.parse_file(grid)
-    mn_data = MyPowerModels.replicate(data, 24)
-    last_profile = [0.9, 1.0, 1.2, 1.3, 1.5, 1.5, 1.0, 1.0, 0.8, 0.8, 1.0, 1.1, 1.1, 1.2, 1.3, 1.4, 1.2, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7]  # Beispiel für Lastprofile
 
-    update_load_data!(mn_data, last_profile)
+function extract_and_parse_number_from_filename(filename)
+    numeric_part_match = match(r"(\d+).m$", filename)
+    if numeric_part_match !== nothing
+        parsed_number = tryparse(Int, numeric_part_match[1])
+        if isnothing(parsed_number)
+            println("Warning: The numeric part found could not be converted to an integer.")
+        end
+        return parsed_number
+    else
+        println("Warning: No numeric part found in the filename.")
+        return nothing
+    end
+end
+
+
+function load_multinetwork_data(case_name, dir)
+    filenames = readdir(dir)
+    pattern = "$(case_name)_"
+    filtered_filenames = filter(f -> occursin(pattern, f) && endswith(f, ".m"), filenames)
+
+
+    sorted_filenames = sort(filtered_filenames, by=f -> extract_and_parse_number_from_filename(f))
+
+    mn_data = Dict("nw" => Dict(), "per_unit" => true, "multinetwork" => true)
+    for filename in sorted_filenames
+        full_path = joinpath(dir, filename)
+        parsed_id = extract_and_parse_number_from_filename(filename) 
+        if isfile(full_path) && parsed_id !== nothing
+            data = MyPowerModels.parse_file(full_path)
+            mn_data["nw"][parsed_id] = data
+        else
+            println("Datei $filename nicht gefunden oder ID ist ungültig.")
+        end
+    end
+
+    return mn_data
+end
+
+
+function main()
+
+    mn_data = load_multinetwork_data(case_name, dir)
+
+    string_nw_keys = Dict(string(k) => v for (k, v) in pairs(mn_data["nw"]))
+    mn_data["nw"] = string_nw_keys
 
     for (case_label, case_options) in configurations
         update_options!(options, case_options)
-        result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, Gurobi.Optimizer, options, jump_model=m; multinetwork=true)
+
+        result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, Gurobi.Optimizer, options, jump_model=Model(); multinetwork=true)
         results = result_mn["solution"]
         
-        save_results(case_name, results, results_filename, data_filename, options_filename)
+        save_results(case_name, results, results_filename, data_filename, options_filename, mn_data)
         script_path = joinpath(pwd(), "post_processing.jl")
-        println(script_path)
+        println("Skriptpfad: ", script_path)
+
         if isfile(script_path)
             println("Running post_processing.jl...")
             include(script_path)
@@ -80,28 +124,13 @@ function main()
         end
     end
 end
-main()
-
-function update_load_data!(mn_data, last_profile)
-    network_keys = sort(collect(keys(mn_data["nw"])))
-    for (n, key) in enumerate(network_keys)
-        network = mn_data["nw"][key]
-        for load in values(network["load"])
-             load["pd"] *= last_profile[n]
-        end
-    end
-end
-update_load_data!(mn_data, last_profile)
-
-
 
 # Save the results
 results_filename = Dict()
 data_filename = Dict()
 options_filename = Dict()
 
-
-function save_results(case_name, results, results_filename, data_filename, options_filename)
+function save_results(case_name, results, results_filename, data_filename, options_filename, mn_data)
     if "nw" in keys(results)
         println(" save the result for the case $case_name")
 
@@ -109,23 +138,13 @@ function save_results(case_name, results, results_filename, data_filename, optio
         data_filename[case_name] = "results\\multi_network_results\\data_$case_name.jld2"
         options_filename[case_name] = "results\\multi_network_results\\options_$case_name.jld2"
 
-        network_keys = sort([parse(Int, key) for key in keys(results["nw"])])
+        network_keys = keys(results["nw"])
         sorted_results = Dict(string(key) => results["nw"][string(key)] for key in network_keys)
 
         JLD2.save(results_filename[case_name], "results", sorted_results)
         JLD2.save(data_filename[case_name], "data", mn_data)
         JLD2.save(options_filename[case_name], "options", options)
     else
-        local gen_data = results["gen"]
-
-        pg_values = Dict()
-        for (gen_id, gen_attrs) in gen_data
-            pg_values[gen_id] = gen_attrs["pg"]
-        end
-        println("Pg-Werte der Generatoren mit H_min:")
-        for (gen_id, pg_value) in pg_values
-            println("Generator $gen_id: Pg = $pg_value")
-        end
 
         results_filename[case_name] = "results\\single_network_results\\results_$case_name.jld2"
         data_filename[case_name] = "results\\single_network_results\\data_$case_name.jld2"
@@ -136,6 +155,28 @@ function save_results(case_name, results, results_filename, data_filename, optio
         JLD2.save(options_filename[case_name], "options", options)
     end
 end
+
+
+main()
+
+# function update_load_data!(mn_data, last_profile)
+#     network_keys = sort(collect(keys(mn_data["nw"])))
+#     for (n, key) in enumerate(network_keys)
+#         network = mn_data["nw"][key]
+#         for load in values(network["load"])
+#              load["pd"] *= last_profile[n]
+#         end
+#     end
+# end
+# update_load_data!(mn_data, last_profile)
+
+    # case_name = "case2"
+    # grid = ".\\test\\data\\matpower\\$case_name.m"
+    # data = MyPowerModels.parse_file(grid)
+    # mn_data = MyPowerModels.replicate(data, 24)
+    # last_profile = [0.9, 1.0, 1.2, 1.3, 1.5, 1.5, 1.0, 1.0, 0.8, 0.8, 1.0, 1.1, 1.1, 1.2, 1.3, 1.4, 1.2, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7]  # Beispiel für Lastprofile
+
+    # update_load_data!(mn_data, last_profile)
 
 # save_results(case_name, results, results_filename, data_filename, options_filename)
 
