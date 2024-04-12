@@ -15,37 +15,12 @@ using GLPK
 using SCIP
 using Cbc
 
-
-case_name = "case2"
-case_name
-grid = ".\\test\\data\\matpower\\$case_name.m"
-data = MyPowerModels.parse_file(grid)
-
-mn_data = MyPowerModels.replicate(data, 3)
-last_profile = [0.9, 1.0, 1.2]
-#last_profile = [2.8, 2.9, 2.8]
-#last_profile = [0.7, 0.7, 0.7, 0.7, 0.7, 1.1, 1.3, 1.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 1.5, 1.5, 1.3, 1.3, 0.9, 0.9, 0.9, 0.9, 0.7]
-
-function update_load_data!(mn_data, last_profile)
-    network_keys = sort(collect(keys(mn_data["nw"])))
-    for (n, key) in enumerate(network_keys)
-        network = mn_data["nw"][key]
-        for load in values(network["load"])
-             load["pd"] *= last_profile[n]
-        end
-    end
-end
-update_load_data!(mn_data, last_profile)
-
-
-
-minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
 options = Dict( 
     "f" => Dict(
         "inertia_constraint"=> "true", # "true", "false"
         "system" => "false", # "true", "false"
         "disturbance" => "large", # "small", "large" 
-        "weighted_area" => "none", # "load", "equal", "none"
+        "weighted_area" => "load", # "load", "equal", "none"
         "area" => "true", # "true", "false"
         "bus" => "false", # "true", "false"
         "calc_delta_P" => [1,250], # "internal" or array of [gen_id, delta_P in MW]
@@ -61,15 +36,64 @@ options = Dict(
         "weighted_area" => "false", # Abhängig von den Leistungsflüssen und größe der verfügbaren Erzeugern in den betroffenen Region. Je grösser LF umso mehr Spannungsunterstützung erforderlich
     )
 )
-m = Model()
 
-# result_sn = solve_opf_with_inertia(data, DCPPowerModel, Gurobi.Optimizer, options)
-# results = result_sn["solution"]
-# result_mn = solve_mn_opf_with_inertia(mn_data, DCPPowerModel, Gurobi.Optimizer , options, multinetwork=true)
-# results = result_mn["solution"]
-result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel,  Gurobi.Optimizer, options, jump_model=m; multinetwork=true)
-results = result_mn["solution"]
-#println(m)
+configurations = [
+    ("Fall_1", Dict("inertia_constraint" => "false", "system" => "false", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
+    ("Fall_2", Dict("inertia_constraint" => "true", "system" => "true", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
+    ("Fall_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
+    ("Fall_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
+    ("Fall_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false"))
+    #("Fall_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "false", "bus" => "true"))
+]
+
+# minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
+m = Model()
+function update_options!(base_options, case_options)
+    for (key, case_value) in case_options
+        if haskey(base_options["f"], key)
+            base_options["f"][key] = case_value
+        end
+    end
+end
+function main()
+    case_name = "case2"
+    grid = ".\\test\\data\\matpower\\$case_name.m"
+    data = MyPowerModels.parse_file(grid)
+    mn_data = MyPowerModels.replicate(data, 24)
+    last_profile = [0.9, 1.0, 1.2, 1.3, 1.5, 1.5, 1.0, 1.0, 0.8, 0.8, 1.0, 1.1, 1.1, 1.2, 1.3, 1.4, 1.2, 1.0, 1.0, 0.9, 0.9, 0.8, 0.8, 0.7]  # Beispiel für Lastprofile
+
+    update_load_data!(mn_data, last_profile)
+
+    for (case_label, case_options) in configurations
+        update_options!(options, case_options)
+        result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, Gurobi.Optimizer, options, jump_model=m; multinetwork=true)
+        results = result_mn["solution"]
+        
+        save_results(case_name, results, results_filename, data_filename, options_filename)
+        script_path = joinpath(pwd(), "post_processing.jl")
+        println(script_path)
+        if isfile(script_path)
+            println("Running post_processing.jl...")
+            include(script_path)
+        else
+            println("post_processing.jl not found. Skipping post-processing..")
+        end
+    end
+end
+main()
+
+function update_load_data!(mn_data, last_profile)
+    network_keys = sort(collect(keys(mn_data["nw"])))
+    for (n, key) in enumerate(network_keys)
+        network = mn_data["nw"][key]
+        for load in values(network["load"])
+             load["pd"] *= last_profile[n]
+        end
+    end
+end
+update_load_data!(mn_data, last_profile)
+
+
 
 # Save the results
 results_filename = Dict()
@@ -113,7 +137,30 @@ function save_results(case_name, results, results_filename, data_filename, optio
     end
 end
 
-save_results(case_name, results, results_filename, data_filename, options_filename)
+# save_results(case_name, results, results_filename, data_filename, options_filename)
+
+#=
+case_name = "case2"
+case_name
+grid = ".\\test\\data\\matpower\\$case_name.m"
+data = MyPowerModels.parse_file(grid)
+
+mn_data = MyPowerModels.replicate(data, 24)
+last_profile = [0.9, 1.0, 1.2]
+#last_profile = [2.8, 2.9, 2.8]
+last_profile = [0.7, 0.7, 0.7, 0.7, 0.7, 1.1, 1.3, 1.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 1.5, 1.5, 1.3, 1.3, 0.9, 0.9, 0.9, 0.9, 0.7]
+
+m = Model()
+
+result_sn = solve_opf_with_inertia(data, DCPPowerModel, Gurobi.Optimizer, options)
+results = result_sn["solution"]
+result_mn = solve_mn_opf_with_inertia(mn_data, DCPPowerModel, Gurobi.Optimizer , options, multinetwork=true)
+results = result_mn["solution"]
+
+result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel,  Gurobi.Optimizer, options, jump_model=m; multinetwork=true)
+results = result_mn["solution"]
+println(m)
+=#
 
 
 #=
