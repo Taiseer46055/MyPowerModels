@@ -28,14 +28,12 @@ end
 
 
 function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, n::Int, i::Int, pmin, pmax)
+
     pg = var(pm, n, :pg)
     z = var(pm, n, :z_gen)
-    println("constraint_gen_exp_power wird aufgerufen")
     JuMP.@constraint(pm.model, pg[i] <= pmax*z[i])
     JuMP.@constraint(pm.model, pg[i] >= pmin*z[i])
-    println("constraint_gen_exp_power$i", pmax*z[i])
-    println("constraint_gen_exp_power$i", pmin*z[i])
-
+    
 end
 
 ################################### End Taiseer Code #########################
