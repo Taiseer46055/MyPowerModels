@@ -77,7 +77,7 @@ function expression_investment_cost(pm::AbstractPowerModel; report::Bool=true)
         gen_data = ref(pm, n, :gen)
         
         for (i, gen) in gen_data
-            investment_cost[i] = (var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"]
+            investment_cost[i] = (var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"]/44
         end
         report && sol_component_value(pm, n, :gen, :investment_cost, ids(pm, n, :gen), investment_cost)
     end
@@ -93,7 +93,8 @@ function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerMo
 
     # operating cost for generators and dclines
     operational_cost = sum(
-        sum(ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
+        sum(
+        ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
         ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
         var(pm, n,   :pg_cost, i) for (i, gen) in nw_ref[:gen]) +
         sum(var(pm, n, :p_dc_cost, i) for (i,dcline) in nw_ref[:dcline]; init=0)
@@ -103,7 +104,7 @@ function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerMo
     investment_cost = sum(
         sum((var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"] 
         for (i, gen) in nw_ref[:gen]) for (n, nw_ref) in nws(pm)
-    )/length(nws(pm))
+    )/44
     
     total_cost =  investment_cost + operational_cost
     println("Total Cost: ", total_cost)

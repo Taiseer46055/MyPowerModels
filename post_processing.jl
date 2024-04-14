@@ -2,18 +2,18 @@
 
 using MyPowerModels
 import MyPowerModels: solve_ac_opf_with_inertia, solve_mn_ac_opf_with_inertia, solve_mn_opf_with_inertia_and_generator_expansion
-using PowerModelsAnalytics
 using JuMP
 using Gurobi
 using Plots
 using Ipopt
 using Juniper
-using JLD
 using JLD2
 using CSV
 using DataFrames
-using XLSX
-using ExcelFiles
+#using JLD
+# using XLSX
+# using PowerModelsAnalytics
+# using ExcelFiles
 
 
 is_multi_network = true
@@ -230,7 +230,12 @@ if is_multi_network
                 pg_cost = gen["pg_cost"]
                 su_cost = gen["startup_cost"]
                 sd_cost = gen["shutdown_cost"]
-                investment_cost = gen["investment_cost"]
+                if network == "1"
+                    investment_cost = gen["investment_cost"]
+                else
+                    investment_cost = 0
+                end
+                # investment_cost = gen["investment_cost"]
                 row[Symbol("PG_$gen_id")] = pg
                 row[Symbol("PG_Cost_$gen_id")] = pg_cost
                 row[Symbol("SU_Cost_$gen_id")] = su_cost

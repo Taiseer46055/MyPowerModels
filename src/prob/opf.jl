@@ -385,7 +385,7 @@ function solve_mn_opf_with_inertia_and_generator_expansion(file, model_type::Typ
     end
 
     # Check that "f" contains all required keys
-    required_keys = ["inertia_constraint", "disturbance", "system", "area", "bus", "calc_delta_P", "alpha_factor", "rocof"]
+    required_keys = ["inertia_constraint", "disturbance", "system", "area", "bus", "calc_delta_P", "alpha_factor", "beta_factor", "rocof"]
     if !all(haskey(options["f"], key) for key in required_keys)
         error("Options 'f' must contain the keys: ", join(required_keys, ", "))
     end

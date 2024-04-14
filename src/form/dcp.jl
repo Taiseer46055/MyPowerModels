@@ -111,6 +111,7 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
             P_load_area = Dict()
             delta_p_area = Dict()
             pg = var(pm, n, :pg)
+            beta = f_options["beta_factor"]
             areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
             for area in areas
                 
@@ -120,18 +121,19 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 
                 # Calculate load and potential delta_p for each area
                 P_load_area[area] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0)
-                P_gen_area_expr = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_area))
+                P_power_area[area] = sum(pg[i] for i in gens_in_area; init=0)
                 #delta_p_area[area] = JuMP.@expression(pm.model, abs(P_gen_area_expr - P_load_area[area]))
-                u_area = JuMP.@variable(pm.model, [area], base_name="u_area", lower_bound=0)
+                # u_area = JuMP.@variable(pm.model, [area], base_name="u_area", lower_bound=0)
                 # Replace the abs function with two linear inequalities
-                JuMP.@constraint(pm.model, P_gen_area_expr - P_load_area[area] <= u_area[area])
-                JuMP.@constraint(pm.model, P_load_area[area] - P_gen_area_expr <= u_area[area])
+                # JuMP.@constraint(pm.model, P_gen_area_expr - P_load_area[area] <= u_area[area])
+                # JuMP.@constraint(pm.model, P_load_area[area] - P_gen_area_expr <= u_area[area])
                 # Use the new variable in the calculation of delta_p_area
-                delta_p_area[area] = u_area[area]
-                E_I_min_area[area] = (delta_p_area[area] * f0)
+                delta_p_area[area] =  P_power_area[area] - P_load_area[area]
+                E_I_min_area[area] = (delta_p_area[area] * f0 / 2 * rocof)
                 E_I_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
                 # Apply area-specific inertia constraints
-                JuMP.@constraint(pm.model, E_I_area[area] *  (P_load_area[area] * 2 * rocof) >= E_I_min_area[area] * sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area))
+                JuMP.@constraint(pm.model,  sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area) >= E_I_min_area * beta)
+                JuMP.@constraint(pm.model,  sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area) >= (-1) * E_I_min_area * beta)
             end
         end
 

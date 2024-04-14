@@ -3,20 +3,23 @@
 
 
 using MyPowerModels
-using PowerModelsAnalytics
+# using PowerModelsAnalytics
 using JuMP
 using Gurobi
 using Plots
 using Ipopt
 using Juniper
-using JLD
+# using JLD
 using JLD2
 using GLPK
-using SCIP
-using Cbc
+# using SCIP
+# using Cbc
 
 dir = ".\\test\\data\\matpower\\multi_nw"
-case_name = "case2"
+bus_system = "10"
+case_name = "mpc_multinetwork_$bus_system" 
+start_day = 000  
+end_day = 000 
 
 
 options = Dict( 
@@ -27,8 +30,9 @@ options = Dict(
         "weighted_area" => "load", # "load", "equal", "none"
         "area" => "true", # "true", "false"
         "bus" => "false", # "true", "false"
-        "calc_delta_P" => [1,250], # "internal" or array of [gen_id, delta_P in MW]
+        "calc_delta_P" => [1,10], # "internal" or array of [gen_id, delta_P in MW]
         "alpha_factor" => 0.1, # [0, 1]
+        "beta_factor" => 0.0, # [0, 1]
         "rocof" => 1.0,
     ), 
     "v" => Dict(
@@ -46,8 +50,13 @@ configurations = [
     ("Fall_2", Dict("inertia_constraint" => "true", "system" => "true", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
     ("Fall_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
     ("Fall_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
-    ("Fall_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false"))
-    #("Fall_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "false", "bus" => "true"))
+    ("Fall_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false")),
+    ("Fall_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.2)),
+    ("Fall_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.4)),
+    ("Fall_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.6)),
+    ("Fall_9", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.8)),
+    ("Fall_10", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
+
 ]
 
 # minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
@@ -60,6 +69,116 @@ function update_options!(base_options, case_options)
     end
 end
 
+function extract_day_hour_from_filename(filename::String)
+
+    match_day = match(r"mpc_(\d{3})_\d{3}.m", filename)
+    match_hour = match(r"mpc_\d{3}_(\d{3}).m", filename)
+
+    if isnothing(match_day) || isnothing(match_hour)
+        error("Could not extract day and hour from filename $filename.")
+    end
+    day = parse(Int, match_day.captures[1])
+    hour = parse(Int, match_hour.captures[1])
+
+    return (day, hour)
+end
+
+
+function generate_day_hour_id(day, hour)
+    id_str = lpad(day, 3, '0') * lpad(hour, 3, '0')
+    return parse(Int, id_str)
+end
+
+function load_multinetwork_data(case_name, dir, start_day, end_day)
+    case_dir = joinpath(dir, case_name)
+    filenames = filter(f -> occursin(r"\.m$", f), readdir(case_dir))
+
+    sorted_filenames = sort(filenames, by=filename -> extract_day_hour_from_filename(filename))
+
+    mn_data = Dict("nw" => Dict(), "per_unit" => true, "multinetwork" => true)
+    for filename in sorted_filenames
+        full_path = joinpath(case_dir, filename)
+        day, hour = extract_day_hour_from_filename(filename)
+
+        if day >= start_day && day <= end_day
+            nw_id = generate_day_hour_id(day, hour)
+            if isfile(full_path)
+                data = MyPowerModels.parse_file(full_path)
+                mn_data["nw"][nw_id] = data
+            else
+                println("data file $full_path not found. Skipping...")
+            end
+        end
+    end
+    println("Loaded $(length(mn_data["nw"])) networks.")
+    println("Network IDs: $(keys(mn_data["nw"]))")
+
+    return mn_data
+end
+
+function main()
+
+    mn_data = load_multinetwork_data(case_name, dir, start_day, end_day)
+
+    string_nw_keys = Dict(string(k) => v for (k, v) in pairs(mn_data["nw"]))
+    mn_data["nw"] = string_nw_keys
+
+    for (case_label, case_options) in configurations
+        update_options!(options, case_options)
+
+        result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, Gurobi.Optimizer, options, jump_model=Model(); multinetwork=true)
+        results = result_mn["solution"]
+        
+        save_results(case_name, results, results_filename, data_filename, options_filename, mn_data)
+        script_path = joinpath(pwd(), "post_processing.jl")
+        println("Skriptpfad: ", script_path)
+
+        if isfile(script_path)
+            println("Running post_processing.jl...")
+            include(script_path)
+        else
+            println("post_processing.jl not found. Skipping post-processing..")
+        end
+    end
+end
+
+# Save the results
+results_filename = Dict()
+data_filename = Dict()
+options_filename = Dict()
+
+function save_results(case_name, results, results_filename, data_filename, options_filename, mn_data)
+    if "nw" in keys(results)
+        println(" save the result for the case $case_name")
+
+        results_filename[case_name] = "results\\multi_network_results\\results_$case_name.jld2"
+        data_filename[case_name] = "results\\multi_network_results\\data_$case_name.jld2"
+        options_filename[case_name] = "results\\multi_network_results\\options_$case_name.jld2"
+
+        network_keys = keys(results["nw"])
+        sorted_results = Dict(string(key) => results["nw"][string(key)] for key in network_keys)
+
+        JLD2.save(results_filename[case_name], "results", sorted_results)
+        JLD2.save(data_filename[case_name], "data", mn_data)
+        JLD2.save(options_filename[case_name], "options", options)
+    else
+
+        results_filename[case_name] = "results\\single_network_results\\results_$case_name.jld2"
+        data_filename[case_name] = "results\\single_network_results\\data_$case_name.jld2"
+        options_filename[case_name] = "results\\single_network_results\\options_$case_name.jld2"
+
+        JLD2.save(results_filename[case_name], "results", results)
+        JLD2.save(data_filename[case_name], "data", data)
+        JLD2.save(options_filename[case_name], "options", options)
+    end
+end
+
+
+main()
+
+
+
+#=
 function extract_and_parse_number_from_filename(filename)
     numeric_part_match = match(r"(\d+).m$", filename)
     if numeric_part_match !== nothing
@@ -124,40 +243,8 @@ function main()
         end
     end
 end
+=#
 
-# Save the results
-results_filename = Dict()
-data_filename = Dict()
-options_filename = Dict()
-
-function save_results(case_name, results, results_filename, data_filename, options_filename, mn_data)
-    if "nw" in keys(results)
-        println(" save the result for the case $case_name")
-
-        results_filename[case_name] = "results\\multi_network_results\\results_$case_name.jld2"
-        data_filename[case_name] = "results\\multi_network_results\\data_$case_name.jld2"
-        options_filename[case_name] = "results\\multi_network_results\\options_$case_name.jld2"
-
-        network_keys = keys(results["nw"])
-        sorted_results = Dict(string(key) => results["nw"][string(key)] for key in network_keys)
-
-        JLD2.save(results_filename[case_name], "results", sorted_results)
-        JLD2.save(data_filename[case_name], "data", mn_data)
-        JLD2.save(options_filename[case_name], "options", options)
-    else
-
-        results_filename[case_name] = "results\\single_network_results\\results_$case_name.jld2"
-        data_filename[case_name] = "results\\single_network_results\\data_$case_name.jld2"
-        options_filename[case_name] = "results\\single_network_results\\options_$case_name.jld2"
-
-        JLD2.save(results_filename[case_name], "results", results)
-        JLD2.save(data_filename[case_name], "data", data)
-        JLD2.save(options_filename[case_name], "options", options)
-    end
-end
-
-
-main()
 
 # function update_load_data!(mn_data, last_profile)
 #     network_keys = sort(collect(keys(mn_data["nw"])))
