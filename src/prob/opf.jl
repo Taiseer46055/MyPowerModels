@@ -432,7 +432,8 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
     # Define a function to build the OPF model for each network.
     function build_my_mn_opf_inertia_gen_exp(pm::AbstractPowerModel)
         # Iterate through each network
-        for n in sort(collect(keys(nws(pm))))
+        sorted_nws = sort(collect(keys(nws(pm))))
+        for n in sorted_nws
 
             # Extract data from the current network in the power model
             gen_data = ref(pm, n, :gen)
@@ -467,7 +468,7 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             E_I_min = delta_P * f0 / 2 * rocof
     
             variable_bus_voltage(pm, nw=n)
-            variable_gen_power_on_off(pm, nw=n)
+            variable_gen_power_real_on_off_with_gen_exp(pm, nw=n)
             
             variable_gen_indicator_with_expansion(pm, nw=n)
             variable_gen_expansion_blocks(pm, nw=n)
@@ -496,7 +497,7 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             end
 
             for i in ids(pm, :gen, nw=n)
-                constraint_startup_shutdown(pm, i, nw=n)
+                constraint_startup_shutdown(pm, i, nw=n, sorted_nws=sorted_nws)
             end
     
             for i in ids(pm, :storage, nw=n)

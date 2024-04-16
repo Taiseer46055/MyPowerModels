@@ -7,21 +7,28 @@
 ################################### Start Taiseer Code #########################
 
 # constraint for the startup and shutdown of generators
-function constraint_startup_shutdown(pm::AbstractPowerModel,  i::Int64; nw::Int=nw_id_default)
+function constraint_startup_shutdown(pm::AbstractPowerModel, i::Int64; nw::Int, sorted_nws::Vector{Int})
 
     z = var(pm, nw, :z_gen)[i]
+    nE = var(pm, nw, :nE)
 
     current_status = z
-    if nw == 1 && z != 0
-        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == current_status)
-        # JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == 0)
-    end
-    if nw > 1    
+    if nw == first(sorted_nws) && z != 0
+        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == 0)
+        JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] == 0)
+
+    elseif nw != first(sorted_nws)
+        
         z_prev = var(pm, nw-1, :z_gen)[i]
         previous_status = z_prev
 
         JuMP.@constraint(pm.model, var(pm, nw, :su)[i] >= current_status - previous_status)
-        # JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] >= previous_status - current_status)
+        JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] >= previous_status - current_status)
+        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] >= 0)
+        JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] >= 0)
+        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] <= nE[i])
+        JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] <= nE[i])
+
     end
 
 end

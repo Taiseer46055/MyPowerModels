@@ -77,7 +77,7 @@ function expression_investment_cost(pm::AbstractPowerModel; report::Bool=true)
         gen_data = ref(pm, n, :gen)
         
         for (i, gen) in gen_data
-            investment_cost[i] = (var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"]/44
+            investment_cost[i] = (var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"]
         end
         report && sol_component_value(pm, n, :gen, :investment_cost, ids(pm, n, :gen), investment_cost)
     end
@@ -104,11 +104,18 @@ function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerMo
     investment_cost = sum(
         sum((var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"] 
         for (i, gen) in nw_ref[:gen]) for (n, nw_ref) in nws(pm)
-    )/44
+    )
     
     total_cost =  investment_cost + operational_cost
     println("Total Cost: ", total_cost)
     return JuMP.@objective(pm.model, Min, total_cost)
+end
+
+function objective_test(pm::AbstractPowerModel; kwargs...)
+
+    total_cost = 0.0
+    return JuMP.@objective(pm.model, Min, total_cost)
+
 end
 
 ################################### End Taiseer Code #########################

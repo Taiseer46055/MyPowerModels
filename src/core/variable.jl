@@ -10,22 +10,18 @@ function variable_startup_shutdown(pm::AbstractPowerModel; nw::Int=nw_id_default
     if !relax
         su = var(pm, nw)[:su] = JuMP.@variable(pm.model,
             [i in ids(pm, nw, :gen)], base_name="$(nw)_su",
-            binary = true
+            integer = true
         )
         sd = var(pm, nw)[:sd] = JuMP.@variable(pm.model,
             [i in ids(pm, nw, :gen)], base_name="$(nw)_sd",
-            binary = true
+            integer = true
         )
     else
         su = var(pm, nw)[:su] = JuMP.@variable(pm.model,
-            [i in ids(pm, nw, :gen)], base_name="$(nw)_su",
-            lower_bound = 0,
-            upper_bound = 1)
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_su")
         
         sd = var(pm, nw)[:sd] = JuMP.@variable(pm.model,
-            [i in ids(pm, nw, :gen)], base_name="$(nw)_sd",
-            lower_bound = 0,
-            upper_bound = 1
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_sd"
         )
     end
 
@@ -60,7 +56,15 @@ function variable_gen_expansion_blocks(pm::AbstractPowerModel; nw::Int=nw_id_def
     report && sol_component_value(pm, nw, :gen, :nE, ids(pm, nw, :gen), nE)
 end
     
+function variable_gen_power_real_on_off_with_gen_exp(pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
 
+    pg = var(pm, nw)[:pg] = JuMP.@variable(pm.model,
+        [i in ids(pm, nw, :gen)], base_name="$(nw)_pg",
+        start = comp_start_value(ref(pm, nw, :gen, i), "pg_start")
+    )
+
+    report && sol_component_value(pm, nw, :gen, :pg, ids(pm, nw, :gen), pg)
+end
 #=
 function variable_expansion_blocks_global(pm::AbstractPowerModel ;  report::Bool=true)
 

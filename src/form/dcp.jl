@@ -27,7 +27,7 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
     @assert P_load > 0 "P_load must be greater than 0"
 
     # Define a new variable for the scaled system inertia
-    E_I_sys = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data))
+    E_I_sys = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in eachindex(gen_data))
 
     if system == "true"
         # Apply the system inertia constraint to the model
@@ -46,7 +46,7 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 E_I_area = Dict()
                 # Identify generators and loads within each area
                 gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
-                E_I_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                E_I_area[area] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0)
                 # Apply area-specific inertia constraints
                 #JuMP.@constraint(pm.model, E_I_area[area] >= E_I_min *  sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area))
                 JuMP.@constraint(pm.model, E_I_area[area] >= E_I_min/length(areas))
@@ -64,7 +64,7 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
                 loads_in_area = [i for i in eachindex(load_data) if bus_data[load_data[i]["load_bus"]]["area"] == area]
                 load_sum_area[area] = sum(load_data[i]["pd"] for i in loads_in_area; init=0)
-                E_I_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                E_I_area[area] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0)
                 W_v[area] = load_sum_area[area] / P_load
                 JuMP.@constraint(pm.model,  E_I_area[area] >= E_I_min * W_v[area])
 
@@ -109,6 +109,7 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
             E_I_area = Dict()
             E_I_min_area = Dict()
             P_load_area = Dict()
+            P_power_area_exp = Dict()
             delta_p_area = Dict()
             pg = var(pm, n, :pg)
             beta = f_options["beta_factor"]
@@ -121,19 +122,13 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 
                 # Calculate load and potential delta_p for each area
                 P_load_area[area] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0)
-                P_power_area[area] = sum(pg[i] for i in gens_in_area; init=0)
-                #delta_p_area[area] = JuMP.@expression(pm.model, abs(P_gen_area_expr - P_load_area[area]))
-                # u_area = JuMP.@variable(pm.model, [area], base_name="u_area", lower_bound=0)
-                # Replace the abs function with two linear inequalities
-                # JuMP.@constraint(pm.model, P_gen_area_expr - P_load_area[area] <= u_area[area])
-                # JuMP.@constraint(pm.model, P_load_area[area] - P_gen_area_expr <= u_area[area])
-                # Use the new variable in the calculation of delta_p_area
-                delta_p_area[area] =  P_power_area[area] - P_load_area[area]
-                E_I_min_area[area] = (delta_p_area[area] * f0 / 2 * rocof)
-                E_I_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area; init=0)
+                P_power_area_exp[area] = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_area))
+                delta_p_area[area] =  JuMP.@expression(pm.model, P_power_area_exp[area] - P_load_area[area])
+                E_I_min_area[area] = (delta_p_area[area] * f0 * beta / 2 * rocof)
+                E_I_area[area] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0)
                 # Apply area-specific inertia constraints
-                JuMP.@constraint(pm.model,  sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area) >= E_I_min_area * beta)
-                JuMP.@constraint(pm.model,  sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in gens_in_area) >= (-1) * E_I_min_area * beta)
+                JuMP.@constraint(pm.model,  sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area) >= E_I_min_area[area])
+                JuMP.@constraint(pm.model,  sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area) >= (-1) * E_I_min_area[area])
             end
         end
 
@@ -161,26 +156,16 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 delta_p_bus[j] = u_bus[j]
                 E_I_min_bus[j] = (delta_p_bus[j] * f0)
                 println("E_I_min_bus $j = ", E_I_min_bus[j])
-                E_I_bus[j] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j; init=0)
+                E_I_bus[j] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j; init=0)
                 println("E_I_bus $j = ", E_I_bus[j])
                 # Apply bus-specific inertia constraints
-                JuMP.@constraint(pm.model, E_I_bus[j] * (P_load_bus[j] * 2 * rocof) >= E_I_min_bus[j] *  sum(gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j))
+                JuMP.@constraint(pm.model, E_I_bus[j] * (P_load_bus[j] * 2 * rocof) >= E_I_min_bus[j] *  sum(maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == j))
             end
         end
     end
 end
 
-#=
-# constraint for min inertia with generator expansion
-function constraint_inertia_with_generator_expansion(pm::DCPPowerModel, E_I_min_bus::Float64; nw::Int=nw_id_default)
 
-    gen_data = ref(pm, nw, :gen)
-    z = var(pm, nw, :z_gen)
-
-    JuMP.@constraint(pm.model, sum(gen_data[i]["H"] * gen_data[i]["pmax"] * z[i] for i in eachindex(gen_data)) >= E_I_min)
-
-end
-=#
 function constraint_gen_exp_indicator(pm::DCPPowerModel, i::Int64; nw::Int=nw_id_default)
     nE = var(pm, nw, :nE)
     z = var(pm, nw, :z_gen)
