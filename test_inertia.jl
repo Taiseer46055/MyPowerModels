@@ -10,6 +10,8 @@ using Ipopt
 using Juniper
 using JLD2
 using GLPK
+using PowerPlots
+using DataFrames
 
 bus_system = "10"
 dir = ".\\test\\data\\matpower\\multi_nw\\bus_$bus_system"
@@ -147,14 +149,6 @@ function main()
                 "Error" => "None"
             )
 
-            # script_path = joinpath(pwd(), "post_processing.jl")
-            # if isfile(script_path)
-            #     include(script_path)
-            #     println("post_processing.jl ausgeführt für Fall: $case_label")
-            # else
-            #     println("post_processing.jl nicht gefunden für Fall: $case_label")
-            # end
-
         catch e
             println("Error processing $case_label: $e")
             results_v["cases"][case_label] = Dict(
@@ -172,8 +166,121 @@ function main()
     else
         println("Some configurations were incorrect, check the intermediate results.")
     end
+
+    script_path = joinpath(pwd(), "post_processing.jl")
+    if isfile(script_path)
+        include(script_path)
+    end
 end
 main()
+
+
+#=
+function main()
+    mn_data = load_multinetwork_data(case_name, dir, start_day, end_day)
+    println("Data loaded with network count: $(length(mn_data["nw"]))")
+    string_nw_keys = Dict(string(k) => v for (k, v) in pairs(mn_data["nw"]))
+    mn_data["nw"] = string_nw_keys
+
+    results_v = Dict()
+    all_successful = true
+
+    for (case_label, case_options) in configurations
+
+        try
+            update_options!(options, case_options)
+
+            options_df = DataFrame(option=String[], value=String[])
+            for (opt_key, opt_value) in options["f"]
+                push!(options_df, (option=opt_key, value=string(opt_value)))
+            end
+            for (opt_key, opt_value) in options["v"]
+                push!(options_df, (option=opt_key, value=string(opt_value)))
+            end
+            
+            gurobi_opt = JuMP.optimizer_with_attributes(
+                Gurobi.Optimizer,
+                "MIPGap" => 0.4, 
+                "FeasibilityTol" => 1e-6
+            )
+
+            result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, gurobi_opt, options, jump_model=m; multinetwork=true)
+            results_v[case_label] = result_mn
+            println("Processing case: $case_label")
+            println("Options for case $case_label: $(options)")
+            if !isempty(result_mn) && haskey(result_mn, "solution")
+                println("Case $case_label solved successfully.")
+            else
+                println("No valid solution found for case $case_label.")
+            end
+            
+
+            if !isempty(result_mn) && haskey(result_mn, "solution")
+                pmdf = prepare_data_for_pmdf(result_mn, options_df);
+                results_v[case_label] = pmdf
+            else
+                println("Keine Lösung für $case_label gefunden.")
+                all_successful = false
+            end
+            # script_path = joinpath(pwd(), "post_processing.jl")
+            # if isfile(script_path)
+            #     include(script_path)
+            #     println("post_processing.jl ausgeführt für Fall: $case_label")
+            # else
+            #     println("post_processing.jl nicht gefunden für Fall: $case_label")
+            # end
+
+        catch e
+            println("Error processing $case_label: $e")
+            all_successful = false
+            continue
+        end
+    end
+
+    JLD2.save("results\\multi_network_results\\results_bus_$bus_system\\results_v_$case_name.jld2", "results_v", results_v)
+    return results_v
+end
+
+function prepare_data_for_pmdf(result_mn, options_df)
+
+    all_buses = DataFrame()
+    all_gens = DataFrame()
+    all_branches = DataFrame()
+
+    for (nw_id, nw_data) in result_mn["solution"]["nw"]
+        if haskey(nw_data, "bus")
+            bus_data = [Dict("nw_id"=>nw_id, "bus_id"=>k, v...) for (k, v) in nw_data["bus"]]
+            append!(all_buses, DataFrame(bus_data))
+        end
+        if haskey(nw_data, "gen")
+            gen_data = [Dict("nw_id"=>nw_id, "gen_id"=>k, v...) for (k, v) in nw_data["gen"]]
+            append!(all_gens, DataFrame(gen_data))
+        end
+        if haskey(nw_data, "branch")
+            branch_data = [Dict("nw_id"=>nw_id, "branch_id"=>k, v...) for (k, v) in nw_data["branch"]]
+            append!(all_branches, DataFrame(branch_data))
+        end
+        # more components can be added here
+    end
+
+    pmdf = PowerModelsDataFrame(
+        metadata = options_df,
+        bus = all_buses,
+        gen = all_gens,
+        branch = all_branches,
+        dcline = DataFrame(),
+        load = DataFrame(),
+        connector = DataFrame(),
+        switch = DataFrame(),
+        transformer = DataFrame()
+    )
+    return pmdf;
+end
+
+main()
+=#
+
+
 
 #=
 function main()
