@@ -122,6 +122,7 @@ function build_opf_H_min(model_type::Type, options::Dict{String, Dict{String}})
         for i in ids(pm, :bus)
             constraint_power_balance(pm, i)
         end
+        
         for i in ids(pm, :storage)
             constraint_storage_state(pm, i)
             constraint_storage_complementarity_mi(pm, i)

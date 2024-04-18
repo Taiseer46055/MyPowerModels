@@ -10,7 +10,9 @@ using JLD2
 using CSV
 using DataFrames
 using PowerPlots
-
+using Graphs
+using GraphPlot
+using LightGraphs
 
 
 is_multi_network = true
@@ -190,11 +192,55 @@ function add_calculated_values_to_df(test_cases, mn_data)
 end
 
 add_calculated_values_to_df(test_cases, mn_data)
-all_data_df = DataFrame(all_data)
 
-println(all_data_df)
+# create a PowerModelsDataFrame from the results for all test cases
+
+function create_pmdfs(all_data, test_cases)
+
+    pmdfs = Dict{String, Dict{String, PowerModelsDataFrame}}()
+    for (test_case, case_data) in test_cases
+        pmdfs[test_case] = Dict{String, PowerModelsDataFrame}()
+
+        for (nw_id, nw_data) in all_data["data"]["mn_data"]["nw"]
+
+            data_for_pmdf = Dict{String, Any}()
+            data_for_pmdf["gen"] =  all_data["cases"][test_cases]["Results"]["solution"]["nw"][nw_id]["gen"]
+            data_for_pmdf["bus"] = all_data["cases"][test_cases]["Results"]["solution"]["nw"][nw_id]["bus"]
+            data_for_pmdf["branch"] = all_data["cases"][test_cases]["Results"]["solution"]["nw"][nw_id]["branch"]
+
+            pmdfs[test_case][nw_id] = PowerModelsDataFrame(data_for_pmdf)
+        end
+    end
+    return pmdfs
+end
+
+
 
 #=
+function create_pmdf_for_solution(test_cases, all_data)
+    pmdf = PowerModelsDataFrame(Dict{String, Any}())
+    for test_case in test_cases
+        println("Creating PowerModelsDataFrame for test case: $test_case")
+        solution_data = all_data["cases"][test_case]["Results"]["solution"]
+        solution_data_string = Dict{String, Any}(solution_data)
+        pmdf = PowerModelsDataFrame(solution_data_string)
+        all_data["cases"][test_case]["Results"]["solution"]["PowerModelsDataFrame"] = pmdf
+    end
+    return pmdf
+end
+pmdf = create_pmdf_for_solution(test_cases, all_data)
+
+
+
+
+
+
+
+
+
+
+
+
 function load_results(case_name, is_multi_network)
     if is_multi_network
         results_filename = "results\\multi_network_results\\results_$case_name.jld2"
@@ -764,7 +810,6 @@ end
 
 
 
-=#
 
 
 
@@ -781,7 +826,8 @@ end
 
 
 
-#=
+
+
 results_filename = "results\\results_$case_name.csv"
 if isfile(results_filename)
     existing_df = CSV.read(results_filename, DataFrame)
