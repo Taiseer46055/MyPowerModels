@@ -184,6 +184,7 @@ function build_opf_H_min(model_type::Type, options::Dict{String, Dict{String}})
     return build_my_opf
 end
 
+
 function solve_mn_opf_with_inertia(file, model_type::Type, optimizer, options::Dict{String, Dict{String}}; kwargs...)
 
     # Check that options has the keys "f" and "v"

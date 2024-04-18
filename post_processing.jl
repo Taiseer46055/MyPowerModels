@@ -214,8 +214,6 @@ function create_pmdfs(all_data, test_cases)
     return pmdfs
 end
 
-
-
 #=
 function create_pmdf_for_solution(test_cases, all_data)
     pmdf = PowerModelsDataFrame(Dict{String, Any}())
