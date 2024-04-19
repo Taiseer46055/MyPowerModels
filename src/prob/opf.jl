@@ -74,38 +74,26 @@ function build_opf_H_min(model_type::Type, options::Dict{String, Dict{String}})
         if isa(calc_delta_P, Array) && length(calc_delta_P) == 2
             gen_id = calc_delta_P[1]
             delta_P = calc_delta_P[2]/baseMVA
-            println("delta_P: ", delta_P)
 
-            gen_data[gen_id]["pmax"] = max(0, gen_data[gen_id]["pmax"] - delta_P)
-            gen_data[gen_id]["pmin"] = max(0, gen_data[gen_id]["pmin"] - delta_P)
-
-            println("Pmax of generator $gen_id: ", gen_data[gen_id]["pmax"])
-            println("Pmin of generator $gen_id: ", gen_data[gen_id]["pmin"])
+            # gen_data[gen_id]["pmax"] = max(0, gen_data[gen_id]["pmax"] - delta_P)
+            # gen_data[gen_id]["pmin"] = max(0, gen_data[gen_id]["pmin"] - delta_P)
 
         elseif isa(calc_delta_P, String) && calc_delta_P == "internal"
             # Calculate delta_P internally based on generator data
             H_pmax_product = Dict(i => gen_data[i]["H"] * gen_data[i]["pmax"] for i in eachindex(gen_data))
             println("H_pmax_product: ", H_pmax_product)
             max_product_gen = argmax(H_pmax_product)[1]
-            println("Generator with maximum product of H and Pmax: ", max_product_gen)
-            println("Pmax of generator with maximum product: ", gen_data[max_product_gen]["pmax"])
-            println("H of generator with maximum product: ", gen_data[max_product_gen]["H"])
-
             delta_P = (gen_data[max_product_gen]["pmax"])*alpha
-            println("delta_P: ", delta_P)
-
-            gen_data[max_product_gen]["pmax"] = max(0, gen_data[max_product_gen]["pmax"]*(1-alpha))
-            gen_data[max_product_gen]["pmin"] = max(0, gen_data[max_product_gen]["pmin"]*(1-alpha))
+            # gen_data[max_product_gen]["pmax"] = max(0, gen_data[max_product_gen]["pmax"]*(1-alpha))
+            # gen_data[max_product_gen]["pmin"] = max(0, gen_data[max_product_gen]["pmin"]*(1-alpha))
 
         else
             error("Invalid value for calc_delta_P. It must be either an array of number or 'internal'.")
         end
 
-        # calc H_min
         rocof = f_options["rocof"]
         f0 = 50.0
-        P_load = sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in load_data)
-        H_min = (delta_P * f0) / (P_load * 2 * rocof)
+        E_I_min = delta_P * f0 / 2 * rocof
 
         variable_bus_voltage(pm)
 
@@ -134,6 +122,7 @@ function build_opf_H_min(model_type::Type, options::Dict{String, Dict{String}})
         for i in ids(pm, :bus)
             constraint_power_balance(pm, i)
         end
+        
         for i in ids(pm, :storage)
             constraint_storage_state(pm, i)
             constraint_storage_complementarity_mi(pm, i)
@@ -160,9 +149,9 @@ function build_opf_H_min(model_type::Type, options::Dict{String, Dict{String}})
             if inertia_constraint == "true"
                 println("Add inertia constraints to the model.")
                 if model_type == DCPPowerModel
-                    constraint_system_inertia(pm, H_min, f_options, n)
+                    constraint_system_inertia(pm, E_I_min, f_options, n)
                 elseif model_type == ACPPowerModel
-                    constraint_system_inertia(pm, H_min, f_options, n)
+                    constraint_system_inertia(pm, E_I_min, f_options, n)
                 end
             end
         else
@@ -184,16 +173,17 @@ function build_opf_H_min(model_type::Type, options::Dict{String, Dict{String}})
             println("The required variables are not entered. Please check your options.")
         end
         
-        # add H_min and delta_P as attributes to the data model
+        # add E_I_min and delta_P as attributes to the data model
 
-        pm.ext[:H_min] = H_min
+        pm.ext[:E_I_min] = E_I_min
         pm.ext[:delta_P] = delta_P
 
-        pm.data["H_min"] = pm.ext[:H_min]
+        pm.data["E_I_min"] = pm.ext[:E_I_min]
         pm.data["delta_P"] = pm.ext[:delta_P]
     end
     return build_my_opf
 end
+
 
 function solve_mn_opf_with_inertia(file, model_type::Type, optimizer, options::Dict{String, Dict{String}}; kwargs...)
 
@@ -266,12 +256,7 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
                 gen_id = calc_delta_P[1]
                 delta_P = calc_delta_P[2]/baseMVA
                 println("delta_P: ", delta_P)
-    
-                # gen_data[gen_id]["pmax"] = max(0, gen_data[gen_id]["pmax"] - delta_P)
-                # gen_data[gen_id]["pmin"] = max(0, gen_data[gen_id]["pmin"] - delta_P)
-    
-                # println("Pmax of generator $gen_id: ", gen_data[gen_id]["pmax"])
-                # println("Pmin of generator $gen_id: ", gen_data[gen_id]["pmin"])
+
     
             elseif isa(calc_delta_P, String) && calc_delta_P == "internal"
                 # Calculate delta_P internally based on generator data
@@ -283,21 +268,15 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
                 println("H of generator with maximum product: ", gen_data[max_product_gen]["H"])
     
                 delta_P = (gen_data[max_product_gen]["pmax"])*alpha
-                # println("delta_P: ", delta_P)
-    
-                # gen_data[max_product_gen]["pmax"] = max(0, gen_data[max_product_gen]["pmax"]*(1-alpha))
-                # gen_data[max_product_gen]["pmin"] = max(0, gen_data[max_product_gen]["pmin"]*(1-alpha))
     
             else
                 error("Invalid value for calc_delta_P. It must be either an array of number or 'internal'.")
             end
     
-            # calc H_min
             rocof = f_options["rocof"]
             f0 = 50.0
-            P_load = sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in load_data)
-            H_min = (delta_P * f0) / (P_load * 2 * rocof)
-    
+            E_I_min = delta_P * f0 / 2 * rocof
+
             variable_bus_voltage(pm, nw=n)
     
             variable_gen_indicator(pm, nw=n)
@@ -356,9 +335,9 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
                 if inertia_constraint == "true"
                     println("Add inertia constraints to the model.")
                     if model_type == DCPPowerModel
-                        constraint_system_inertia(pm, H_min, f_options, n)
+                        constraint_system_inertia(pm, E_I_min, f_options, n)
                     elseif model_type == ACPPowerModel
-                        constraint_system_inertia(pm, H_min, f_options, n)
+                        constraint_system_inertia(pm, E_I_min, f_options, n)
                     end
                 end
             else
@@ -380,12 +359,12 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
                 println("The required variables are not entered. Please check your options.")
             end
             
-            # add H_min and delta_P as attributes to the data model
+            # add E_I_min and delta_P as attributes to the data model
     
-            pm.ext[:H_min] = H_min
+            pm.ext[:E_I_min] = E_I_min
             pm.ext[:delta_P] = delta_P
     
-            pm.data["H_min"] = pm.ext[:H_min]
+            pm.data["E_I_min"] = pm.ext[:E_I_min]
             pm.data["delta_P"] = pm.ext[:delta_P]
 
             
@@ -408,7 +387,7 @@ function solve_mn_opf_with_inertia_and_generator_expansion(file, model_type::Typ
     end
 
     # Check that "f" contains all required keys
-    required_keys = ["inertia_constraint", "disturbance", "system", "area", "bus", "calc_delta_P", "alpha_factor", "rocof"]
+    required_keys = ["inertia_constraint", "disturbance", "system", "area", "bus", "calc_delta_P", "alpha_factor", "beta_factor", "rocof"]
     if !all(haskey(options["f"], key) for key in required_keys)
         error("Options 'f' must contain the keys: ", join(required_keys, ", "))
     end
@@ -455,7 +434,8 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
     # Define a function to build the OPF model for each network.
     function build_my_mn_opf_inertia_gen_exp(pm::AbstractPowerModel)
         # Iterate through each network
-        for n in sort(collect(keys(nws(pm))))
+        sorted_nws = sort(collect(keys(nws(pm))))
+        for n in sorted_nws
 
             # Extract data from the current network in the power model
             gen_data = ref(pm, n, :gen)
@@ -469,25 +449,14 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             if isa(calc_delta_P, Array) && length(calc_delta_P) == 2
                 gen_id = calc_delta_P[1]
                 delta_P = calc_delta_P[2]/baseMVA
-                # println("delta_P: ", delta_P)
-    
-                # gen_data[gen_id]["pmax"] = max(0, gen_data[gen_id]["pmax"] - delta_P)
-                # gen_data[gen_id]["pmin"] = max(0, gen_data[gen_id]["pmin"] - delta_P)
-    
-                # println("Pmax of generator $gen_id: ", gen_data[gen_id]["pmax"])
-                # println("Pmin of generator $gen_id: ", gen_data[gen_id]["pmin"])
     
             elseif isa(calc_delta_P, String) && calc_delta_P == "internal"
                 # Calculate delta_P internally based on generator data
                 H_pmax_product = Dict(i => gen_data[i]["H"] * gen_data[i]["pmax"] for i in eachindex(gen_data))
                 # println("H_pmax_product: ", H_pmax_product)
                 max_product_gen = argmax(H_pmax_product)[1]
-                # println("Generator with maximum product of H and Pmax: ", max_product_gen)
-                # println("Pmax of generator with maximum product: ", gen_data[max_product_gen]["pmax"])
-                # println("H of generator with maximum product: ", gen_data[max_product_gen]["H"])
     
                 delta_P = (gen_data[max_product_gen]["pmax"])*alpha
-                # println("delta_P: ", delta_P)
     
                 # gen_data[max_product_gen]["pmax"] = max(0, gen_data[max_product_gen]["pmax"]*(1-alpha))
                 # gen_data[max_product_gen]["pmin"] = max(0, gen_data[max_product_gen]["pmin"]*(1-alpha))
@@ -496,14 +465,12 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
                 error("Invalid value for calc_delta_P. It must be either an array of number or 'internal'.")
             end
     
-            # calc H_min
             rocof = f_options["rocof"]
             f0 = 50.0
-            P_load = sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in load_data)
-            H_min = (delta_P * f0) / (P_load * 2 * rocof)
+            E_I_min = delta_P * f0 / 2 * rocof
     
             variable_bus_voltage(pm, nw=n)
-            if gen_data[1]["state"] == 0 # is the [1] correct?
+            if gen_data[1]["state"] == 0
                 variable_gen_indicator(pm, nw=n)
             end
             #variable_gen_indicator(pm, nw=n)
@@ -517,37 +484,24 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
 
             variable_startup_shutdown(pm, nw = n)
 
-            variable_expansion_blocks_global(pm)
-            variable_generator_expansion_active_blocks(pm, nw = n)
-            variable_gen_power_on_off_with_gen_exp(pm, nw = n)
-            # variable_gen_power_limits(pm, nw = n)
 
-            constraint_max_active_blocks(pm, nw = n)
-            
             for i in ids(pm, :gen, nw=n)
-                if gen_data[i]["state"] == 0
-                    constraint_gen_power_on_off(pm, i, nw=n)
-                # constraint_mn_min_up_down_time(pm, n)
-                elseif gen_data[i]["state"] == 1
-                    constraint_gen_exp_power_on_off(pm, i, nw=n)
-                end
+                constraint_gen_exp_indicator(pm, i, nw=n)
+                constraint_gen_expansion_blocks(pm, i, nw = n)
+                constraint_nE_consistency(pm, i, nw = n)
+                constraint_gen_exp_power_on_off(pm, i, nw = n)
             end
             
             constraint_model_voltage(pm, nw=n)
-
 
             for i in ids(pm, :ref_buses, nw=n)
                 constraint_theta_ref(pm, i, nw=n)
             end
 
             for i in ids(pm, :gen, nw=n)
-                if gen_data[i]["state"] == 0
-                    constraint_startup_shutdown(pm, i, nw=n)
-                elseif gen_data[i]["state"] == 1
-
-                end
+                constraint_startup_shutdown(pm, i, nw=n, sorted_nws=sorted_nws)
             end
-            
+    
             for i in ids(pm, :storage, nw=n)
                 constraint_storage_on_off(pm, i, nw=n)
             end
@@ -580,9 +534,9 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
                 inertia_constraint = f_options["inertia_constraint"]
                 if inertia_constraint == "true"
                     if model_type == DCPPowerModel
-                        constraint_inertia_with_generator_expansion(pm, H_min, nw = n)
+                        constraint_system_inertia(pm, E_I_min, f_options, n)
                     elseif model_type == ACPPowerModel
-                        constraint_inertia_with_generator_expansion(pm, H_min, nw = n)
+                        constraint_system_inertia(pm, E_I_min, f_options, n)
                     end
                 end
             else
@@ -604,12 +558,12 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
                 println("The required variables are not entered. Please check your options.")
             end
 
-            # add H_min and delta_P as attributes to the data model
+            # add E_I_min and delta_P as attributes to the data model
     
-            pm.ext[:H_min] = H_min
+            pm.ext[:E_I_min] = E_I_min
             pm.ext[:delta_P] = delta_P
     
-            pm.data["H_min"] = pm.ext[:H_min]
+            pm.data["E_I_min"] = pm.ext[:E_I_min]
             pm.data["delta_P"] = pm.ext[:delta_P]
 
             

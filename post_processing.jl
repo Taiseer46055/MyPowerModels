@@ -1,23 +1,243 @@
 # Script to post-process the results of the optimization problem
 
 using MyPowerModels
-import MyPowerModels: solve_ac_opf_with_inertia, solve_mn_ac_opf_with_inertia
-using PowerModelsAnalytics
 using JuMP
 using Gurobi
 using Plots
 using Ipopt
 using Juniper
-using JLD
 using JLD2
 using CSV
 using DataFrames
-using XLSX
-using ExcelFiles
+using PowerPlots
+using Graphs
+using GraphPlot
+using LightGraphs
 
 
 is_multi_network = true
-case_name = "case2"
+case_name = "mpc_multinetwork_10"
+bus_system = case_name[end-1:end]
+results_file = "results\\multi_network_results\\results_bus_$bus_system\\results_v_$case_name.jld2"
+
+all_data = JLD2.load(results_file)["results_v"]
+mn_data = all_data["data"]["mn_data"]
+test_cases = sort(collect(keys(all_data["cases"])))
+
+function add_calculated_values_to_df(test_cases, mn_data)
+
+    for test_case in test_cases
+        println("Adding calculated values to DataFrame for test case: $test_case")
+
+        for nw in sort(collect(keys(all_data["cases"][test_case]["Results"]["solution"]["nw"])))
+
+            case_data = all_data["cases"][test_case]
+            results = Dict()
+            options = Dict()
+            E_I_weighted_area = Dict()
+            P_load_area = Dict()
+            P_gen_area = Dict()
+            delta_p_area = Dict()
+            E_I_min_area = Dict()
+            P_gen_bus = Dict()
+            P_load_bus = Dict()
+            delta_p_bus = Dict()
+            E_I_min_bus = Dict()
+            E_I_bus = Dict()
+            E_I_weighted_area = Dict()
+            E_I_weighted_area = Dict()
+            E_I_area = Dict()
+            E_I_min_area = Dict()
+    
+
+            if haskey(case_data, "Error") && case_data["Error"] == "None"
+                results[test_case] = all_data["cases"][test_case]["Results"]
+                options[test_case] =  all_data["cases"][test_case]["Options"]
+                gen_data = mn_data["nw"][nw]["gen"]
+                bus_data = mn_data["nw"][nw]["bus"]
+                load_data = mn_data["nw"][nw]["load"]
+                f0 = 50
+                alpha = options[test_case]["f"]["alpha_factor"]
+                rocof = options[test_case]["f"]["rocof"]
+
+                sol_gen_data = all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["gen"]
+                sol_bus_data = all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["bus"]
+
+                for (gen_id, gen) in gen_data
+                    H = gen_data[gen_id]["H"]
+                    pmin = gen_data[gen_id]["pmin"]
+                    pmax = gen_data[gen_id]["pmax"]
+                    pmin = abs(pmin)
+                    pmax = abs(pmax)
+                    pv = [pmin, pmax]
+                    pmin = minimum(pv)
+                    pmax = maximum(pv)
+                    gen_bus = gen_data[gen_id]["gen_bus"]
+
+                    if !haskey(sol_gen_data, gen_id)
+                        sol_gen_data[gen_id] = Dict()
+                    end
+
+                    sol_gen_data[gen_id]["H"] = H
+                    sol_gen_data[gen_id]["pmin"] = pmin
+                    sol_gen_data[gen_id]["pmax"] = pmax
+                    
+                    sol_gen_data[gen_id]["gen_bus"] = gen_bus
+                end
+        
+                for (bus_id, bus) in bus_data
+                    area = bus_data[bus_id]["area"]
+                    sol_bus_data[bus_id]["area"] = area
+                end
+        
+                for i in keys(sol_gen_data)
+                    if sol_gen_data[i]["gen_status"] < 1e-2
+                        sol_gen_data[i]["gen_status"] = 0
+                    end
+                    if sol_gen_data[i]["pg"] < 1e-2
+                        sol_gen_data[i]["gen_status"] = 0
+                    end
+                end
+            end
+            
+            delta_P = mn_data["delta_P"]    
+            E_I_min = mn_data["E_I_min"]
+            all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["Delta_P"] = delta_P
+            all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_min"] = E_I_min
+
+            if options[test_case]["f"]["system"] == "true"
+    
+                E_I_sys = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in keys(sol_gen_data))
+                all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_sys"] = E_I_sys
+            end
+    
+            if options[test_case]["f"]["weighted_area"] == "load" && options[test_case]["f"]["disturbance"] == "small"
+                    
+                areas = unique([sol_bus_data[j]["area"] for j in keys(sol_bus_data)])
+                for area in areas
+                    gens_in_area = [i for i in keys(sol_gen_data) if sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
+                    E_I_weighted_area[area] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
+                    
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_Weighted_Area_$area"] = E_I_weighted_area[area]
+                end
+    
+            end
+    
+            if options[test_case]["f"]["weighted_area"] == "equal" && options[test_case]["f"]["disturbance"] == "small"
+                    
+                areas = unique([sol_bus_data[j]["area"] for j in keys(sol_bus_data)])
+                for area in areas
+                    gens_in_area = [i for i in keys(sol_gen_data) if sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
+                    E_I_weighted_area[area] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
+
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_Weighted_Area_$area"] = E_I_weighted_area[area]
+                end
+    
+            end
+    
+            if options[test_case]["f"]["weighted_area"] == "none" && options[test_case]["f"]["disturbance"] == "small"
+                    
+                areas = unique([sol_bus_data[j]["area"] for j in keys(sol_bus_data)])
+                for area in areas
+                    E_I_weighted_area[area] = nothing
+                    
+                    # add the calculated values to the DataFrame
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_Weighted_Area_$area"] = E_I_weighted_area[area]
+                end
+    
+            end
+    
+            if options[test_case]["f"]["area"] == "true" && options[test_case]["f"]["disturbance"] == "large"
+    
+                areas = unique([sol_bus_data[j]["area"] for j in keys(sol_bus_data)])
+                for area in areas
+    
+                    gens_in_area = [i for i in keys(sol_gen_data) if sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
+                    buses_in_area = [i for i in keys(sol_bus_data) if sol_bus_data[i]["area"] == area]
+                    P_load_area[area] = sum(load_data[i]["pd"] for i in keys(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0)
+                    P_gen_area[area] = sum(sol_gen_data[i]["pg"] for i in gens_in_area; init=0)
+                    delta_p_area[area] = abs(P_gen_area[area] - P_load_area[area])
+                    E_I_min_area[area] = (delta_p_area[area] * f0 / rocof * 2)
+                    E_I_area[area] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
+                    
+                    # add the calculated values to the DataFrame
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_Area_$area"] = E_I_area[area]
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["Delta_P_Area_$area"] = delta_p_area[area]
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_Min_Area_$area"] = E_I_min_area[area]
+                end
+    
+            end
+    
+    
+            if options[test_case]["f"]["bus"] == "true" && options[test_case]["f"]["disturbance"] == "large"
+    
+                for j in keys(sol_bus_data)
+    
+                    gens_at_bus = [i for i in keys(sol_gen_data) if string(sol_gen_data[i]["gen_bus"]) == j]
+                    P_gen_bus[j] = sum(sol_gen_data[i]["pg"] for i in gens_at_bus; init=0)
+                    P_load_bus[j] = sum(load_data[i]["pd"] for i in keys(load_data) if string(load_data[i]["load_bus"]) == j; init=0)
+                    delta_p_bus[j] = abs(P_gen_bus[j] - P_load_bus[j])
+                    H_min_bus[j] = (delta_p_bus[j] * f0) / (P_load_bus[j] * 2 * rocof)
+                    E_I_bus[j] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_at_bus; init=0)
+                    
+                    # add the calculated values to the DataFrame
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_Bus_$j"] = E_I_bus[j]
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["Delta_P_Bus_$j"] = delta_p_bus[j]
+                    all_data["cases"][test_case]["Results"]["solution"]["nw"][nw]["E_I_Min_Bus_$j"] = E_I_min_bus[j]
+                end
+            end
+        end
+    end
+    return all_data
+end
+
+add_calculated_values_to_df(test_cases, mn_data)
+
+# create a PowerModelsDataFrame from the results for all test cases
+
+function create_pmdfs(all_data, test_cases)
+
+    pmdfs = Dict{String, Dict{String, PowerModelsDataFrame}}()
+    for (test_case, case_data) in test_cases
+        pmdfs[test_case] = Dict{String, PowerModelsDataFrame}()
+
+        for (nw_id, nw_data) in all_data["data"]["mn_data"]["nw"]
+
+            data_for_pmdf = Dict{String, Any}()
+            data_for_pmdf["gen"] =  all_data["cases"][test_cases]["Results"]["solution"]["nw"][nw_id]["gen"]
+            data_for_pmdf["bus"] = all_data["cases"][test_cases]["Results"]["solution"]["nw"][nw_id]["bus"]
+            data_for_pmdf["branch"] = all_data["cases"][test_cases]["Results"]["solution"]["nw"][nw_id]["branch"]
+
+            pmdfs[test_case][nw_id] = PowerModelsDataFrame(data_for_pmdf)
+        end
+    end
+    return pmdfs
+end
+
+#=
+function create_pmdf_for_solution(test_cases, all_data)
+    pmdf = PowerModelsDataFrame(Dict{String, Any}())
+    for test_case in test_cases
+        println("Creating PowerModelsDataFrame for test case: $test_case")
+        solution_data = all_data["cases"][test_case]["Results"]["solution"]
+        solution_data_string = Dict{String, Any}(solution_data)
+        pmdf = PowerModelsDataFrame(solution_data_string)
+        all_data["cases"][test_case]["Results"]["solution"]["PowerModelsDataFrame"] = pmdf
+    end
+    return pmdf
+end
+pmdf = create_pmdf_for_solution(test_cases, all_data)
+
+
+
+
+
+
+
+
+
+
+
 
 function load_results(case_name, is_multi_network)
     if is_multi_network
@@ -39,150 +259,153 @@ function load_results(case_name, is_multi_network)
     end
 end
 
+
 if is_multi_network
-    mn_data, mn_options, mn_results = load_results(case_name, is_multi_network)
+    mn_data, mn_options, mn_results = load_results(case_name)
     sorted_keys = sort([parse(Int, n) for n in keys(mn_results)])
+    num_networks = length(sorted_keys)
     
     for n in sorted_keys
         nw_results = mn_results[string(n)]
-        gen_data = mn_data["nw"][string(n)]["gen"]
-        bus_data = mn_data["nw"][string(n)]["bus"]
-        branch_data = mn_data["nw"][string(n)]["branch"]
-        load_data = mn_data["nw"][string(n)]["load"]
-        baseMVA = mn_data["nw"][string(n)]["baseMVA"]
-        sol_gen_data = nw_results["gen"]
-        sol_bus_data = nw_results["bus"]
-        f_options = mn_options["f"]
-        alpha = f_options["alpha_factor"]
-        calc_delta_P = f_options["calc_delta_P"]
-        rocof = f_options["rocof"]
-        bus = f_options["bus"]
-        area = f_options["area"]
-        weighted_area = f_options["weighted_area"]
+        mn_gen_data = mn_data["nw"][string(n)]["gen"]
+        mn_bus_data = mn_data["nw"][string(n)]["bus"]
+        mn_branch_data = mn_data["nw"][string(n)]["branch"]
+        mn_load_data = mn_data["nw"][string(n)]["load"]
+        mn_baseMVA = mn_data["nw"][string(n)]["baseMVA"]
+        mn_sol_gen_data = nw_results["gen"]
+        mn_sol_bus_data = nw_results["bus"]
+        local options = mn_options["f"]
+        local alpha = options["alpha_factor"]
+        local calc_delta_P = options["calc_delta_P"]
+        local rocof = options["rocof"]
+        local bus = options["bus"]
+        local area = options["area"]
+        local weighted_area = options["weighted_area"]
+
         
-        for (gen_id, gen) in gen_data
-            H = gen_data[gen_id]["H"]
-            pmin = gen_data[gen_id]["pmin"]
-            pmax = gen_data[gen_id]["pmax"]
-            gen_bus = gen_data[gen_id]["gen_bus"]
+        for (gen_id, gen) in mn_gen_data
+            H = mn_gen_data[gen_id]["H"]
+            pmin = mn_gen_data[gen_id]["pmin"]
+            pmax = mn_gen_data[gen_id]["pmax"]
+            pmin = abs(pmin)
+            pmax = abs(pmax)
+            pv = [pmin, pmax]
+            pmin = minimum(pv)
+            pmax = maximum(pv)
+            gen_bus = mn_gen_data[gen_id]["gen_bus"]
 
-            if !haskey(sol_gen_data, gen_id)
-                sol_gen_data[gen_id] = Dict()
+            if !haskey(mn_sol_gen_data, gen_id)
+                mn_sol_gen_data[gen_id] = Dict()
             end
 
-            sol_gen_data[gen_id]["H"] = H
-            sol_gen_data[gen_id]["pmin"] = pmin
-            sol_gen_data[gen_id]["pmax"] = pmax
-            sol_gen_data[gen_id]["gen_bus"] = gen_bus
+            mn_sol_gen_data[gen_id]["H"] = H
+            mn_sol_gen_data[gen_id]["pmin"] = pmin
+            mn_sol_gen_data[gen_id]["pmax"] = pmax
+            mn_sol_gen_data[gen_id]["gen_bus"] = gen_bus
         end
 
-        for (bus_id, bus) in bus_data
-            local area = bus_data[bus_id]["area"]
-            sol_bus_data[bus_id]["area"] = area
+        for (bus_id, bus) in mn_bus_data
+            local area = mn_bus_data[bus_id]["area"]
+            mn_sol_bus_data[bus_id]["area"] = area
         end
 
-        for i in keys(sol_gen_data)
-            if sol_gen_data[i]["gen_status"] < 1e-2
-                sol_gen_data[i]["gen_status"] = 0
+        for i in keys(mn_sol_gen_data)
+            if mn_sol_gen_data[i]["gen_status"] < 1e-2
+                mn_sol_gen_data[i]["gen_status"] = 0
             end
-            if sol_gen_data[i]["pg"] < 1e-2
-                sol_gen_data[i]["gen_status"] = 0
+            if mn_sol_gen_data[i]["pg"] < 1e-2
+                mn_sol_gen_data[i]["gen_status"] = 0
             end
         end
 
-        H_sys = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in keys(sol_gen_data)) / sum(sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in keys(sol_gen_data))
-        println("H_sys = ", H_sys)
+        E_I_sys = sum(mn_sol_gen_data[i]["H"] * mn_sol_gen_data[i]["pmax"] * mn_sol_gen_data[i]["gen_status"] for i in keys(mn_sol_gen_data))
+        local delta_P = mn_data["delta_P"]    
+        E_I_min = mn_data["E_I_min"]
 
-        delta_P = mn_data["delta_P"]
-        println("delta_P = ", delta_P)
-    
-        H_min = mn_data["H_min"]
-        println("H_min = ", H_min)
+        E_I_weighted_area = Dict()
 
-        H_min_weighted_area = Dict()
-        P_gen_weighted_area = Dict()
-        P_load_weighted_area = Dict()
-        delta_p_weighted_area = Dict()
-        H_weighted_area = Dict()
+        if options["weighted_area"] == "load" && options["disturbance"] == "small"
 
-        if f_options["weighted_area"] == "load" && f_options["disturbance"] == "small"
-            println("Calculating weighted area inertia")
-            areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
-            local sum_H_area_weighted = 0
+            areas = unique([mn_sol_bus_data[j]["area"] for j in keys(mn_sol_bus_data)])
+            local sum_E_I_area_weighted = 0
             for area in areas
-                W_v = Dict()
-                load_sum_area = Dict()
-                gens_in_area = [i for i in keys(sol_gen_data) if haskey(sol_bus_data, string(sol_gen_data[i]["gen_bus"])) && sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
-                loads_in_area = [i for i in keys(load_data) if sol_bus_data[string(load_data[i]["load_bus"])]["area"] == area]
-                load_sum_area[area] = sum(load_data[i]["pd"] for i in loads_in_area; init=0)
-                H_weighted_area[area] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0) / sum(sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
-                P_load = sum(load_data[i]["pd"] for i in keys(load_data); init=0)
-                W_v[area] = load_sum_area[area] / P_load
-                println("W_v von area $area: ", W_v[area])
-                sum_H_area_weighted += W_v[area] * H_weighted_area[area]
-                println("sum_H_area_weighted: ", sum_H_area_weighted)
+                gens_in_area = [i for i in keys(mn_sol_gen_data) if mn_sol_bus_data[string(mn_sol_gen_data[i]["gen_bus"])]["area"] == area]
+                E_I_weighted_area[area] = sum(mn_sol_gen_data[i]["H"] * mn_sol_gen_data[i]["pmax"] * mn_sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
             end
         end
 
-        if f_options["weighted_area"] == "equal" && f_options["disturbance"] == "small"
-            println("Calculating equal area inertia")
-            areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+        if options["weighted_area"] == "equal" && options["disturbance"] == "small"
+
+            areas = unique([mn_sol_bus_data[j]["area"] for j in keys(mn_sol_bus_data)])
             for area in areas
-                gens_in_area = [i for i in keys(sol_gen_data) if haskey(sol_bus_data, string(sol_gen_data[i]["gen_bus"])) && sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
-                H_weighted_area[area] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0) / sum(sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
+                gens_in_area = [i for i in keys(mn_sol_gen_data) if mn_sol_bus_data[string(mn_sol_gen_data[i]["gen_bus"])]["area"] == area]
+                E_I_weighted_area[area] = sum(mn_sol_gen_data[i]["H"] * mn_sol_gen_data[i]["pmax"] * mn_sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
             end
         end
 
-        if f_options["weighted_area"] == "none" && f_options["disturbance"] == "small"
-            println("No weighted_area inertia calculation")
-            areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+        if options["weighted_area"] == "none" && options["disturbance"] == "small"
+
+            areas = unique([mn_sol_bus_data[j]["area"] for j in keys(mn_sol_bus_data)])
             for area in areas
-                H_weighted_area[area] = missing
+                E_I_weighted_area[area] = missing
             end
         end
 
         # Berechnung für jeden Bus
-        f0 = 50
-        H_min_bus = Dict()
-        H_bus = Dict()
-        P_gen_bus = Dict()
-        P_load_bus = Dict()
-        delta_p_bus = Dict()
+        local f0 = 50
+        local H_min_bus = Dict()
+        local E_I_bus = Dict()
+        local P_gen_bus = Dict()
+        local P_load_bus = Dict()
+        local delta_p_bus = Dict()
 
-        if f_options["bus"] == "true" && f_options["disturbance"] == "large"
-            for j in keys(sol_bus_data)
-                gens_at_bus = [i for i in keys(sol_gen_data) if string(sol_gen_data[i]["gen_bus"]) == j]
-                P_gen_bus[j] = sum(sol_gen_data[i]["pg"] for i in gens_at_bus; init=0)
-                P_load_bus[j] = sum(load_data[i]["pd"] for i in keys(load_data) if string(load_data[i]["load_bus"]) == j; init=0)
+        if options["bus"] == "true" && options["disturbance"] == "large"
+            E_I_bus = Dict()
+            E_I_min_bus = Dict()
+            P_load_bus = Dict()
+            delta_p_bus = Dict()
+            P_gen_bus = Dict()
+
+            for j in keys(mn_bus_data)
+                P_gen_bus[j] = sum(mn_sol_gen_data[i]["pg"] for (i, gen) in ref(pm, n, :gen) if gen["gen_bus"] == j)
+                P_load_bus[j] = sum(mn_load_data[i]["pd"] for i in eachindex(mn_load_data) if mn_load_data[i]["load_bus"] == j; init=0)
                 delta_p_bus[j] = abs(P_gen_bus[j] - P_load_bus[j])
-                H_min_bus[j] = (delta_p_bus[j] * f0) / (P_load_bus[j] * 2 * rocof)
-                H_bus[j] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_at_bus; init=0) / sum(sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_at_bus; init=0)
- 
+                E_I_min_bus[j] = (delta_p_bus[j] * f0 / rocof * 2)
+                E_I_bus[j] = sum(mn_sol_gen_data[i]["H"] * mn_sol_gen_data[i]["pmax"] * mn_sol_gen_data[i]["gen_status"] for i in eachindex(mn_sol_gen_data) if mn_sol_gen_data[i]["gen_bus"] == j; init=0)
+
             end
         end
 
         # Berechnung für jede Area
-        H_min_area = Dict()
-        H_area = Dict()
-        P_gen_area = Dict()
-        P_load_area = Dict()
-        delta_p_area = Dict()
+        local E_I_min_area = Dict()
+        local E_I_area = Dict()
+        local P_gen_area = Dict()
+        local P_load_area = Dict()
+        local delta_p_area = Dict()
 
-        global areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+        global areas = unique([mn_bus_data[j]["area"] for j in keys(mn_bus_data)])
 
-        if f_options["area"] == "true" && f_options["disturbance"] == "large"
+        if options["area"] == "true" && options["disturbance"] == "large"
+            E_I_area = Dict()
+            E_I_min_area = Dict()
+            P_load_area = Dict()
+            delta_p_area = Dict()
+            P_gen_area = Dict()
+
+            areas = unique([mn_bus_data[j]["area"] for j in keys(mn_bus_data)])
             for area in areas
-                gens_in_area = [i for i in keys(sol_gen_data) if haskey(sol_bus_data, string(sol_gen_data[i]["gen_bus"])) && sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
-                buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == area]
-                P_load_area[area] = sum(load_data[i]["pd"] for i in keys(load_data) if string(load_data[i]["load_bus"]) in buses_in_area; init=0)
-                P_gen_area[area] = sum(sol_gen_data[i]["pg"] for i in gens_in_area; init=0)
-                delta_p_area[area] = abs(P_gen_area[area] - P_load_area[area])
-                H_min_area[area] = (delta_p_area[area] * f0) / (P_load_area[area] * 2 * rocof)
-                H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0) / sum(gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
 
+                gens_in_area = [i for i in keys(mn_sol_gen_data) if mn_sol_bus_data[string(mn_sol_gen_data[i]["gen_bus"])]["area"] == area]
+                buses_in_area = [i for i in keys(mn_sol_bus_data) if mn_sol_bus_data[i]["area"] == area]
+                
+                P_load_area[area] = sum(mn_load_data[i]["pd"] for i in eachindex(mn_load_data) if mn_load_data[i]["load_bus"] in buses_in_area; init=0)
+                P_gen_area = sum(mn_sol_gen_data[i]["pg"] for i in gens_in_area)
+                delta_p_area[area] = abs(P_gen_area - P_load_area[area])
+                E_I_min_area[area] = (delta_p_area[area] * f0/ rocof * 2)
+                E_I_area[area] = sum(mn_sol_gen_data[i]["H"] * mn_sol_gen_data[i]["pmax"] * mn_sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
             end
         end
-        df = DataFrame(
+        local df = DataFrame(
             Network = String[],  # Neue Spalte für das Netzwerk
             Options = String[],
             rocof = Float64[],
@@ -224,7 +447,7 @@ if is_multi_network
 
         end
         
-        function save_results_as_csv(df, options, results, network)
+        function save_results_as_csv(df, options, results, network, num_networks)
             
             options_name = generate_options_name(options["f"])
             row = Dict{Symbol, Any}(:Network => network, :Options => options_name)
@@ -232,57 +455,69 @@ if is_multi_network
             for (gen_id, gen) in nw_results["gen"]
                 pg = gen["pg"]
                 pg_cost = gen["pg_cost"]
+                su_cost = gen["startup_cost"]
+                sd_cost = gen["shutdown_cost"]
+                if network == "0"
+                    investment_cost = gen["investment_cost"]
+                else
+                    investment_cost = 0
+                end
+                # investment_cost = gen["investment_cost"]
                 row[Symbol("PG_$gen_id")] = pg
                 row[Symbol("PG_Cost_$gen_id")] = pg_cost
-                total_cost += pg_cost
+                row[Symbol("SU_Cost_$gen_id")] = su_cost
+                row[Symbol("SD_Cost_$gen_id")] = sd_cost
+                row[Symbol("Investment_Cost_$gen_id")] = investment_cost
+
+                total_cost += pg_cost + su_cost + sd_cost + investment_cost
             end
             row[Symbol("Total_cost")] = total_cost
-            row[Symbol("H_Sys")] = H_sys
+            row[Symbol("E_I_sys")] = E_I_sys
             row[Symbol("Delta_P")] = delta_P
-            row[Symbol("H_Min")] = H_min
+            row[Symbol("E_I_min")] = E_I_min
             row[Symbol("rocof")] = rocof
 
-            if f_options["weighted_area"] == "load" && f_options["disturbance"] == "small"
+            if options["weighted_area"] == "load" && options["disturbance"] == "small"
                 for area in areas
                     column_name = Symbol("H_Weighted_Area_$area")
-                    row[column_name] = H_weighted_area[area]
+                    row[column_name] = E_I_weighted_area[area]
                 end
             end
 
-            if f_options["weighted_area"] == "equal" && f_options["disturbance"] == "small"
+            if options["weighted_area"] == "equal" && options["disturbance"] == "small"
                 for area in areas
                     column_name = Symbol("H_Weighted_Area_$area")
-                    row[column_name] = H_weighted_area[area]
+                    row[column_name] = E_I_weighted_area[area]
                 end
             end
 
-            if f_options["weighted_area"] == "none" && f_options["disturbance"] == "small"
+            if options["weighted_area"] == "none" && options["disturbance"] == "small"
                 for area in areas
                     column_name = Symbol("H_Weighted_Area_$area")
-                    row[column_name] = H_weighted_area[area]
+                    row[column_name] = E_I_weighted_area[area]
                 end
             end
 
-            if f_options["bus"] == "true" && f_options["disturbance"] == "large"
-                for j in keys(sol_bus_data)
-                    row[Symbol("H_Bus_$j")] = H_bus[j]
+            if options["bus"] == "true" && options["disturbance"] == "large"
+                for j in keys(mn_sol_bus_data)
+                    row[Symbol("E_I_Bus_$j")] = E_I_bus[j]
                     row[Symbol("Delta_P_Bus_$j")] = delta_p_bus[j]
-                    row[Symbol("H_Min_Bus_$j")] = H_min_bus[j]
+                    row[Symbol("E_I_min_bus$j")] = E_I_min_bus[j]
                 end
             end
 
-            if f_options["area"] == "true" && f_options["disturbance"] == "large"
+            if options["area"] == "true" && options["disturbance"] == "large"
                 for r in areas
-                    row[Symbol("H_Area_$r")] = H_area[r]
+                    row[Symbol("E_I_Area_$r")] = E_I_area[r]
                     row[Symbol("Delta_P_Area_$r")] = delta_p_area[r]
-                    row[Symbol("H_Min_Area_$r")] = H_min_area[r]
+                    row[Symbol("E_I_min_area$r")] = E_I_min_area[r]
                 end
             end
             
             df_row = DataFrame(row)
             df_row = select(df_row, :Options, :Network, Not([:Options, :Network]))
 
-            results_filename = "results\\multi_network_results\\results_$case_name.csv"
+            results_filename = "results\\multi_network_results\\results_$(case_name)_$(num_networks)_networks.csv"
             if isfile(results_filename)
                 existing_df = CSV.read(results_filename, DataFrame)
                 for col_name in names(df_row)
@@ -299,7 +534,7 @@ if is_multi_network
             end
         end
         
-        save_results_as_csv(df, mn_options, mn_results, n)
+        save_results_as_csv(df, mn_options, nw_results, string(n), num_networks)
         
     end
 
@@ -309,63 +544,62 @@ if is_multi_network
 else
 
     sn_data, sn_options, sn_results = load_results(case_name, is_multi_network)
-    gen_data = sn_data["gen"]
-    bus_data = sn_data["bus"]
-    branch_data = sn_data["branch"]
-    load_data = sn_data["load"]
-    baseMVA = sn_data["baseMVA"]
-    sol_gen_data = results["gen"]
-    sol_bus_data = results["bus"]
-    f_options = options["f"]
-    alpha = f_options["alpha_factor"]
-    calc_delta_P = f_options["calc_delta_P"]
-    rocof = f_options["rocof"]
-    bus = f_options["bus"]
-    area = f_options["area"]
-    weighted_area = f_options["weighted_area"]
+    sn_gen_data = sn_data["gen"]
+    sn_bus_data = sn_data["bus"]
+    sn_branch_data = sn_data["branch"]
+    sn_load_data = sn_data["load"]
+    sn_baseMVA = sn_data["baseMVA"]
+    sn_sol_gen_data = sn_results["gen"]
+    sn_sol_bus_data = sn_results["bus"]
+    options = sn_options["f"]
+    alpha = options["alpha_factor"]
+    calc_delta_P = options["calc_delta_P"]
+    rocof = options["rocof"]
+    bus = options["bus"]
+    area = options["area"]
+    weighted_area = options["weighted_area"]
 
-    for (gen_id, gen) in gen_data
+
+    for (gen_id, gen) in sn_gen_data
         H = sn_data["gen"][gen_id]["H"]
 
         pmin = sn_data["gen"][gen_id]["pmin"]
         pmax = sn_data["gen"][gen_id]["pmax"]
         gen_bus = sn_data["gen"][gen_id]["gen_bus"]
 
-        if !haskey(sol_gen_data, gen_id)
-            sol_gen_data[gen_id] = Dict()
+        if !haskey(sn_sol_gen_data, gen_id)
+            sn_sol_gen_data[gen_id] = Dict()
         end
 
-        sol_gen_data[gen_id]["H"] = H
-        sol_gen_data[gen_id]["pmin"] = pmin
-        sol_gen_data[gen_id]["pmax"] = pmax
-        sol_gen_data[gen_id]["gen_bus"] = gen_bus
+        sn_sol_gen_data[gen_id]["H"] = H
+        sn_sol_gen_data[gen_id]["pmin"] = pmin
+        sn_sol_gen_data[gen_id]["pmax"] = pmax
+        sn_sol_gen_data[gen_id]["gen_bus"] = gen_bus
     end
 
-    for (bus_id, bus) in bus_data
+    for (bus_id, bus) in sn_bus_data
     
         local area = sn_data["bus"][bus_id]["area"]
-        sol_bus_data[bus_id]["area"] = area
+        sn_sol_bus_data[bus_id]["area"] = area
 
     end
 
-    for i in keys(sol_gen_data)
-        if sol_gen_data[i]["gen_status"] < 1e-2
-            sol_gen_data[i]["gen_status"] = 0
+    for i in keys(sn_sol_gen_data)
+        if sn_sol_gen_data[i]["gen_status"] < 1e-2
+            sn_sol_gen_data[i]["gen_status"] = 0
         end
-        if sol_gen_data[i]["pg"] < 1e-2
-            sol_gen_data[i]["gen_status"] = 0
+        if sn_sol_gen_data[i]["pg"] < 1e-2
+            sn_sol_gen_data[i]["gen_status"] = 0
         end
     end
-    H_sys = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in eachindex(sol_gen_data)) / sum(sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in eachindex(sol_gen_data))
+    H_sys = sum(sn_sol_gen_data[i]["H"] * sn_sol_gen_data[i]["pmax"] * sn_sol_gen_data[i]["gen_status"] for i in eachindex(sn_sol_gen_data)) / sum(sn_sol_gen_data[i]["pmax"] * sn_sol_gen_data[i]["gen_status"] for i in eachindex(sn_sol_gen_data))
     println("H_sys = ", H_sys)
 
     delta_P = sn_data["delta_P"]
     println("delta_P = ", delta_P)
 
-
     H_min = sn_data["H_min"]
     println("H_min = ", H_min)
-
 
     H_min_weighted_area = Dict()
     P_gen_weighted_area = Dict()
@@ -373,38 +607,37 @@ else
     delta_p_weighted_area = Dict()
     H_weighted_area = Dict()
 
-    if f_options["weighted_area"] == "load" && f_options["disturbance"] == "small"
-        println("Calculating weighted area inertia")
-        areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
-        local sum_H_area_weighted = 0
+    if options["weighted_area"] == "load" && options["disturbance"] == "small"
+
+        areas = unique([sn_bus_data[j]["area"] for j in keys(sn_bus_data)])
+        local sum_E_I_area_weighted = 0
         for area in areas
+
             W_v = Dict()
             load_sum_area = Dict()
-            gens_in_area = [i for i in keys(sol_gen_data) if haskey(sol_bus_data, string(sol_gen_data[i]["gen_bus"])) && sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
-            loads_in_area = [i for i in keys(load_data) if sol_bus_data[string(load_data[i]["load_bus"])]["area"] == area]
-            load_sum_area[area] = sum(load_data[i]["pd"] for i in loads_in_area; init=0)
-            H_weighted_area[area] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0) / sum(sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
-            P_load = sum(load_data[i]["pd"] for i in keys(load_data); init=0)
+            gens_in_area = [i for i in keys(sn_sol_gen_data) if haskey(sn_sol_bus_data, string(sn_sol_gen_data[i]["gen_bus"])) && sn_sol_bus_data[string(sn_sol_gen_data[i]["gen_bus"])]["area"] == area]
+            loads_in_area = [i for i in keys(sn_load_data) if sn_sol_bus_data[string(sn_load_data[i]["load_bus"])]["area"] == area]
+            load_sum_area[area] = sum(sn_load_data[i]["pd"] for i in loads_in_area; init=0)
+            E_I_weighted_area[area] = sum(sn_sol_gen_data[i]["H"] * sn_sol_gen_data[i]["pmax"] * sn_sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
+            P_load = sum(sn_load_data[i]["pd"] for i in keys(sn_load_data); init=0)
             W_v[area] = load_sum_area[area] / P_load
-            println("W_v von area $area: ", W_v[area])
-            sum_H_area_weighted += W_v[area] * H_weighted_area[area]
-            println("sum_H_area_weighted: ", sum_H_area_weighted)
+            sum_E_I_area_weighted += W_v[area] * H_weighted_area[area]
     
         end
     end
 
-    if f_options["weighted_area"] == "equal" && f_options["disturbance"] == "small"
-        println("Calculating equal area inertia")
-        areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+    if options["weighted_area"] == "equal" && options["disturbance"] == "small"
+
+        areas = unique([sn_bus_data[j]["area"] for j in keys(sn_bus_data)])
         for area in areas
-            gens_in_area = [i for i in keys(sol_gen_data) if haskey(sol_bus_data, string(sol_gen_data[i]["gen_bus"])) && sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
-            H_weighted_area[area] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0) / sum(sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
+            gens_in_area = [i for i in keys(sn_sol_gen_data) if haskey(sn_sol_bus_data, string(sn_sol_gen_data[i]["gen_bus"])) && sn_sol_bus_data[string(sn_sol_gen_data[i]["gen_bus"])]["area"] == area]
+            H_weighted_area[area] = sum(sn_sol_gen_data[i]["H"] * sn_sol_gen_data[i]["pmax"] * sn_sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0) / sum(sn_sol_gen_data[i]["pmax"] * sn_sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
         end
     end
 
 
-    if f_options["weighted_area"] == "none" && f_options["disturbance"] == "small"
-        println("No weighted_area inertia calculation")
+    if options["weighted_area"] == "none" && options["disturbance"] == "small"
+
         for area in areas
             H_weighted_area[area] = missing
         end
@@ -413,60 +646,45 @@ else
     # Berechnung für jeden Bus
     f0 = 50
     H_min_bus = Dict()
-    H_bus = Dict()
+    E_I_bus = Dict()
     P_gen_bus = Dict()
     P_load_bus = Dict()
     delta_p_bus = Dict()
 
-    if f_options["bus"] == "true" && f_options["disturbance"] == "large"
-        for j in keys(sol_bus_data)
+    if options["bus"] == "true" && options["disturbance"] == "large"
+        for j in keys(sn_sol_bus_data)
 
-            gens_at_bus = [i for i in keys(sol_gen_data) if string(sol_gen_data[i]["gen_bus"]) == j]
-            P_gen_bus[j] = sum(sol_gen_data[i]["pg"] for i in gens_at_bus; init=0)
-            P_load_bus[j] = sum(load_data[i]["pd"] for i in keys(load_data) if string(load_data[i]["load_bus"]) == j; init=0)
+            gens_at_bus = [i for i in keys(sn_sol_gen_data) if string(sn_sol_gen_data[i]["gen_bus"]) == j]
+            P_gen_bus[j] = sum(sn_sol_gen_data[i]["pg"] for i in gens_at_bus; init=0)
+            P_load_bus[j] = sum(sn_load_data[i]["pd"] for i in keys(sn_load_data) if string(sn_load_data[i]["load_bus"]) == j; init=0)
             delta_p_bus[j] = abs(P_gen_bus[j] - P_load_bus[j])
             H_min_bus[j] = (delta_p_bus[j] * f0) / (P_load_bus[j] * 2 * rocof)
-            H_bus[j] = sum(sol_gen_data[i]["H"] * sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_at_bus; init=0) / sum(sol_gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_at_bus; init=0)
-    
-            println("Generatoren am Bus $j: ", gens_at_bus)
-            println("P_load_bus $j = ", P_load_bus[j])
-            println("P_gen_bus $j = ", P_gen_bus[j])
-            println("delta_p_bus $j = ", delta_p_bus[j])
-            println("H_min_bus $j = ", H_min_bus[j])
-            println("H_bus $j = ", H_bus)
+            E_I_bus[j] = sum(sn_sol_gen_data[i]["H"] * sn_sol_gen_data[i]["pmax"] * sn_sol_gen_data[i]["gen_status"] for i in gens_at_bus; init=0)
+
 
         end
     end
 
     # Berechnung für jede Area
-    H_min_area = Dict()
-    H_area = Dict()
+    E_I_min_area = Dict()
+    E_I_area = Dict()
     P_gen_area = Dict()
     P_load_area = Dict()
     delta_p_area = Dict()
 
-    global areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
+    global areas = unique([sn_bus_data[j]["area"] for j in keys(sn_bus_data)])
 
-    if f_options["area"] == "true" && f_options["disturbance"] == "large"
+    if options["area"] == "true" && options["disturbance"] == "large"
         for area in areas
 
-            gens_in_area = [i for i in keys(sol_gen_data) if haskey(sol_bus_data, string(sol_gen_data[i]["gen_bus"])) && sol_bus_data[string(sol_gen_data[i]["gen_bus"])]["area"] == area]
-            buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == area]
+            gens_in_area = [i for i in keys(sn_sol_gen_data) if haskey(sn_sol_bus_data, string(sn_sol_gen_data[i]["gen_bus"])) && sn_sol_bus_data[string(sn_sol_gen_data[i]["gen_bus"])]["area"] == area]
+            buses_in_area = [i for i in keys(sn_bus_data) if sn_bus_data[i]["area"] == area]
 
-            P_load_area[area] = sum(load_data[i]["pd"] for i in keys(load_data) if string(load_data[i]["load_bus"]) in buses_in_area; init=0)
-            P_gen_area[area] = sum(sol_gen_data[i]["pg"] for i in gens_in_area; init=0)
+            P_load_area[area] = sum(sn_load_data[i]["pd"] for i in keys(sn_load_data) if string(sn_load_data[i]["load_bus"]) in buses_in_area; init=0)
+            P_gen_area[area] = sum(sn_sol_gen_data[i]["pg"] for i in gens_in_area; init=0)
             delta_p_area[area] = abs(P_gen_area[area] - P_load_area[area])
-            H_min_area[area] = (delta_p_area[area] * f0) / (P_load_area[area] * 2 * rocof)
-            H_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0) / sum(gen_data[i]["pmax"] * sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0)
-
-            println("Gens in area $area: ", gens_in_area)
-            println("Buses in area $area: ", buses_in_area)
-            println("P_load_area $area = ", P_load_area[area])
-            println("P_gen_area $area = ", P_gen_area[area])
-            println("delta_p_area $area = ", delta_p_area[area])
-            println("H_area_min $area = ", H_min_area[area])
-            println("H_area $area = ", H_area[area])
-
+            E_I_min_area[area] = (delta_p_area[area] * f0) / (P_load_area[area] * 2 * rocof)
+            E_I_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * sn_sol_gen_data[i]["gen_status"] for i in gens_in_area; init=0) 
             end
         end
         df = DataFrame(
@@ -529,40 +747,40 @@ else
         row[Symbol("H_Min")] = H_min
         row[Symbol("rocof")] = rocof
 
-        if f_options["weighted_area"] == "load" && f_options["disturbance"] == "small"
+        if options["weighted_area"] == "load" && options["disturbance"] == "small"
             for area in areas
                 column_name = Symbol("H_Weighted_Area_$area")
                 row[column_name] = H_weighted_area[area]
             end
         end
 
-        if f_options["weighted_area"] == "equal" && f_options["disturbance"] == "small"
+        if options["weighted_area"] == "equal" && options["disturbance"] == "small"
             for area in areas
                 column_name = Symbol("H_Weighted_Area_$area")
                 row[column_name] = H_weighted_area[area]
             end
         end
 
-        if f_options["weighted_area"] == "none" && f_options["disturbance"] == "small"
+        if options["weighted_area"] == "none" && options["disturbance"] == "small"
             for area in areas
                 column_name = Symbol("H_Weighted_Area_$area")
                 row[column_name] = H_weighted_area[area]
             end
         end
 
-        if f_options["bus"] == "true" && f_options["disturbance"] == "large"
-            for j in keys(sol_bus_data)
-                row[Symbol("H_Bus_$j")] = H_bus[j]
+        if options["bus"] == "true" && options["disturbance"] == "large"
+            for j in keys(sn_sol_bus_data)
+                row[Symbol("E_I_Bus_$j")] = E_I_bus[j]
                 row[Symbol("Delta_P_Bus_$j")] = delta_p_bus[j]
-                row[Symbol("H_Min_Bus_$j")] = H_min_bus[j]
+                row[Symbol("E_I_Min_Bus_$j")] = E_I_min_bus[j]
             end
         end
 
-        if f_options["area"] == "true" && f_options["disturbance"] == "large"
+        if options["area"] == "true" && options["disturbance"] == "large"
             for r in areas
-                row[Symbol("H_Area_$r")] = H_area[r]
+                row[Symbol("E_I_Area_$r")] = E_I_Area[r]
                 row[Symbol("Delta_P_Area_$r")] = delta_p_area[r]
-                row[Symbol("H_Min_Area_$r")] = H_min_area[r]
+                row[Symbol("E_I_Min_Area_$r")] = E_I_min_area[r]
             end
         end
 
@@ -590,7 +808,24 @@ end
 
 
 
-#=
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 results_filename = "results\\results_$case_name.csv"
 if isfile(results_filename)
     existing_df = CSV.read(results_filename, DataFrame)
