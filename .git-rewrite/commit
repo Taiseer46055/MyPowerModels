@@ -1,17 +1,6 @@
-tree 6bc7e8bb06e812f6d6353078d6d10e25fabac612
-parent 4090bc2a9e9a5e931a468f560306763e5f8e796e
-author Frederik <frederik.geth@gmail.com> 1576875594 +1100
-committer Carleton Coffrin <cjc@lanl.gov> 1576875594 -0700
+tree d7d76bdd9b03f389407483b472247e48d32e8845
+parent f12ff4dd0fe71d6dc61d5192a2a9bc0732916b03
+author Carleton <cjc@lanl.gov> 1470165928 -0600
+committer Carleton <cjc@lanl.gov> 1470165928 -0600
 
-Remove unused functions in solution.jl (#638)
-
-* clean up dead-code functions from v0.12 solution update.
-
-removes
-- get_solution
-- add_generator_power_setpoint
-- add_storage_setpoint
-- add_branch_flow_setpoint
-- add_dcline_flow_setpoint
-- add_generator_power_setpoint
-- add_storage_setpoint
+fixing file name in load shedding tests
