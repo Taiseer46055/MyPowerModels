@@ -93,7 +93,7 @@ function build_opf_H_min(model_type::Type, options::Dict{String, Dict{String}})
 
         rocof = f_options["rocof"]
         f0 = 50.0
-        E_I_min = delta_P * f0 / 2 * rocof
+        E_I_min = (delta_P * f0) / (2 * rocof)
 
         variable_bus_voltage(pm)
 
@@ -275,7 +275,8 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
     
             rocof = f_options["rocof"]
             f0 = 50.0
-            E_I_min = delta_P * f0 / 2 * rocof
+            E_I_min = (delta_P * f0) / (2 * rocof)
+            println("E_I_min: ", E_I_min)
 
             variable_bus_voltage(pm, nw=n)
     
@@ -366,7 +367,6 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
     
             pm.data["E_I_min"] = pm.ext[:E_I_min]
             pm.data["delta_P"] = pm.ext[:delta_P]
-
             
         end
     
@@ -467,14 +467,15 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
     
             rocof = f_options["rocof"]
             f0 = 50.0
-            E_I_min = delta_P * f0 / 2 * rocof
+
+            E_I_min = (delta_P * f0) / (2 * rocof)
     
             variable_bus_voltage(pm, nw=n)
-            if gen_data[1]["state"] == 0
-                variable_gen_indicator(pm, nw=n)
-            end
-            #variable_gen_indicator(pm, nw=n)
-            #variable_gen_power_on_off(pm, nw=n)
+            variable_gen_power_real_on_off_with_gen_exp(pm, nw=n)
+            
+            variable_gen_indicator_with_expansion(pm, nw=n)
+            variable_gen_expansion_blocks(pm, nw=n)
+            
     
             variable_storage_indicator(pm, nw=n)
             variable_storage_power_mi_on_off(pm, nw=n)
@@ -482,7 +483,8 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             variable_branch_power(pm, nw=n)
             variable_dcline_power(pm, nw=n)
 
-            variable_startup_shutdown(pm, nw = n)
+            variable_startup_shutdown(pm, nw=n)
+            variable_slack_bus_ineria(pm, nw=n)
 
 
             for i in ids(pm, :gen, nw=n)
@@ -505,9 +507,10 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             for i in ids(pm, :storage, nw=n)
                 constraint_storage_on_off(pm, i, nw=n)
             end
-
+            mu_vec = []
             for i in ids(pm, :bus, nw=n)
                 constraint_power_balance(pm, i, nw=n)
+                # constraint_slack_bus_ineria(pm, i, mu_vec, nw=n)
             end
 
             for i in ids(pm, :storage, nw=n)
@@ -547,7 +550,6 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
                 v_options = options["v"]
                 voltage_constraint = v_options["voltage_constraint"]
                 if voltage_constraint == "true"
-                    println("Add voltage constraints to the model.")
                     if model_type == DCPPowerModel
                         constriant_reactive_power(pm, v_options, n)
                     elseif model_type == ACPPowerModel
@@ -558,6 +560,7 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
                 println("The required variables are not entered. Please check your options.")
             end
 
+
             # add E_I_min and delta_P as attributes to the data model
     
             pm.ext[:E_I_min] = E_I_min
@@ -566,8 +569,19 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             pm.data["E_I_min"] = pm.ext[:E_I_min]
             pm.data["delta_P"] = pm.ext[:delta_P]
 
-            
         end
+
+        E_I_sM = JuMP.@variable(pm.model, [1:length(nws(pm)), 1:length(ids(pm, :bus))])
+        for n in sort(collect(keys(nws(pm))))
+            E_I_s = var(pm, n, :E_I_s)
+            for i in ids(pm, n, :bus)
+                JuMP.@constraint(pm.model, E_I_sM[n+1,i] == E_I_s[i])
+            end
+        end
+        JuMP.@constraint(pm.model, Inertia_slack, E_I_sM .<= 0)
+        # JuMP.@constraint(pm.model, In_slack[1:length(nws(pm)), 1:length(ids(pm, :bus))], E_I_sM .== 0)
+
+        constraint_min_renewable_injection(pm)
         objective_with_generator_expansion_and_inertia_cost(pm)
 
     end

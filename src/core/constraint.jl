@@ -43,6 +43,12 @@ function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, n::Int, i::Int,
     
 end
 
+function constraint_min_renewable_injection(pm::AbstractPowerModel,total_renewable_pg_expr , total_load)
+    x = 0.95 # percentage of renewable energy
+    JuMP.@constraint(pm.model, total_renewable_pg_expr >= x * total_load)
+end
+
+
 ################################### End Taiseer Code #########################
 
 

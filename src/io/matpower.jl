@@ -24,7 +24,7 @@ end
 
 ### Data and functions specific to Matpower format ###
 
-const _mp_data_names = ["mpc.version", "mpc.baseMVA", "mpc.bus", "mpc.gen",
+const _mp_data_names = ["mpc.version", "mpc.baseMVA", "mpc.weight", "mpc.bus", "mpc.gen",
     "mpc.branch", "mpc.dcline", "mpc.gencost", "mpc.dclinecost",
     "mpc.bus_name", "mpc.storage", "mpc.switch"
 ]
@@ -157,6 +157,12 @@ function _parse_matpower_string(data_string::String)
     else
         Memento.warn(_LOGGER, string("no baseMVA found in matpower file.  The file seems to be missing \"mpc.baseMVA = ...\""))
         case["baseMVA"] = 1.0
+    end
+
+    if haskey(matlab_data, "mpc.weight")
+        case["weight"] = matlab_data["mpc.weight"]
+    else
+        Memento.warn(_LOGGER, string("no weight found in matpower file.  The file seems to be missing \"mpc.weight = ...\""))
     end
 
 
@@ -790,6 +796,7 @@ function export_matpower(io::IO, data::Dict{String,Any})
     end
 
     mvaBase = data["baseMVA"]
+    weight = data["weight"]
 
     # Print the header information
     println(io, "%% MATPOWER Case Format : Version 2")
@@ -799,6 +806,7 @@ function export_matpower(io::IO, data::Dict{String,Any})
     println(io, "%%-----  Power Flow Data  -----%%")
     println(io, "%% system MVA base")
     println(io, "mpc.baseMVA = ", mvaBase, ";")
+    println(io), "mpc.weight = ", weight, ";"
 
     # Print the bus data
     println(io, "%% bus data")
@@ -1099,7 +1107,7 @@ function export_matpower(io::IO, data::Dict{String,Any})
 
     # print the extra component data
     for (key, value) in data
-        if key != "bus" && key != "gen" && key != "branch" && key != "load" && key != "shunt" && key != "storage" && key != "dcline" && key != "switch" && key != "ne_branch" && key != "version" && key != "baseMVA" && key != "per_unit" && key != "name" && key != "source_type" && key != "source_version"
+        if key != "bus" && key != "gen" && key != "branch" && key != "load" && key != "shunt" && key != "storage" && key != "dcline" && key != "switch" && key != "ne_branch" && key != "version" && key != "baseMVA" && key != "weight" && key != "per_unit" && key != "name" && key != "source_type" && key != "source_version"
             _export_extra_data(io, data, key)
         end
     end

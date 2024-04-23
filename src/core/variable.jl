@@ -65,6 +65,18 @@ function variable_gen_power_real_on_off_with_gen_exp(pm::AbstractPowerModel; nw:
 
     report && sol_component_value(pm, nw, :gen, :pg, ids(pm, nw, :gen), pg)
 end
+
+function variable_slack_bus_ineria(pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
+
+    E_I_s = var(pm, nw)[:E_I_s] = JuMP.@variable(pm.model,
+    [i in ids(pm, nw, :bus)], base_name="$(nw)_E_I_s",
+    lower_bound = -1,
+    start = 0
+)
+    report && sol_component_value(pm, nw, :bus, :E_I_s, ids(pm, nw, :bus), E_I_s)
+end
+
+
 #=
 function variable_expansion_blocks_global(pm::AbstractPowerModel ;  report::Bool=true)
 
@@ -148,45 +160,6 @@ function variable_gen_power_limits(pm::AbstractPowerModel; nw::Int=nw_id_default
             gen_data[i]["qmax"] = new_qmax
             gen_data[i]["qmin"] = new_qmin
 
-        end
-    end
-end
-
-
-function variable_pot_gen_power(pm::AbstractPowerModel; kwargs...)
-    variable_pot_gen_power_real(pm, pot_gens; kwargs...)
-    variable_pot_gen_power_imaginary(pm, pot_gens; kwargs...)
-
-end
-
-function variable_pot_gen_power_real(pm::AbstractPowerModel, pot_gens; nw::Int=nw_id_default, bounded::Bool=true)
-
-    pg_pot = JuMP.@variable(pm.model,
-        [gen_id in keys(gen_data)], base_name="$(nw)_pg_pot",
-        start = 0 
-    )
-    pm.ext[:pg_pot] = pg_pot
-
-    if bounded
-        for (gen_id, gen_attrs) in gen_data
-            JuMP.set_lower_bound(pg_pot[gen_id], gen_attrs["pg_min"])
-            JuMP.set_upper_bound(pg_pot[gen_id], gen_attrs["pg_max"])
-        end
-    end
-end
-
-function variable_pot_gen_power_imaginary(pm::AbstractPowerModel, pot_gens; nw::Int=nw_id_default, bounded::Bool=true)
-
-    qg_pot = JuMP.@variable(pm.model,
-        [gen_id in keys(gen_data)], base_name="$(nw)_qg_pot",
-        start = 0 
-    )
-    pm.ext[:qg_pot] = qg_pot
-
-    if bounded
-        for (gen_id, gen_attrs) in gen_data
-            JuMP.set_lower_bound(qg_pot[gen_id], gen_attrs["qg_min"])
-            JuMP.set_upper_bound(qg_pot[gen_id], gen_attrs["qg_max"])
         end
     end
 end

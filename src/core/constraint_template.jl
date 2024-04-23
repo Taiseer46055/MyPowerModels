@@ -20,6 +20,30 @@ function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, i::Int; nw::Int
     constraint_gen_exp_power_on_off(pm, nw, i, gen["pmin"], gen["pmax"])
 end
 
+function constraint_min_renewable_injection(pm::AbstractPowerModel)
+
+
+    renewable_carriers = [3,4,5]
+    total_renewable_pg_expr = JuMP.@expression(pm.model, 0)
+
+    total_load = sum(ref(pm, n, :weight) * 
+                    sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in ref(pm, n, :load))
+                    for (n, _) in nws(pm))
+   
+    for (n, _) in nws(pm)
+        weight = ref(pm, n, :weight)
+        gen_data = ref(pm, n, :gen)
+
+        for id in keys(gen_data)
+            if gen_data[id]["carrier"] in renewable_carriers
+                JuMP.@expression(pm.model, total_renewable_pg_expr += weight * var(pm, n, :pg)[id])
+            end
+        end
+    end
+
+    constraint_min_renewable_injection(pm, total_renewable_pg_expr, total_load)
+end
+
 
 ################################### End Taiseer Code #########################
 
