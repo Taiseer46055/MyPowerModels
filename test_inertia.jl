@@ -19,6 +19,16 @@ case_name = "mpc_multinetwork_$bus_system"
 start_day = 000  
 end_day = 007
 
+# Define the options for the optimization
+relax_integrality = true
+function setting_the_relax_values(relax_integrality)
+    if relax_integrality
+        setting = Dict("output" => Dict("duals" => true))
+    else
+        setting = Dict("output" => Dict("duals" => false))
+    end
+    return setting
+end
 
 options = Dict( 
     "f" => Dict(
@@ -40,23 +50,26 @@ options = Dict(
         "max_pas" => "false",    # phase angle shift
         "area" => "false",
         "weighted_area" => "false", # Abhängig von den Leistungsflüssen und größe der verfügbaren Erzeugern in den betroffenen Region. Je grösser LF umso mehr Spannungsunterstützung erforderlich
+    ),
+    "re" => Dict(
+        "precentage_re_inj" => 0.5,
     )
 )
 
 configurations = [
-    # ("case_1", Dict("inertia_constraint" => "false", "system" => "false", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
+    ("case_1", Dict("inertia_constraint" => "false", "system" => "false", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
     ("case_2", Dict("inertia_constraint" => "true", "system" => "true", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
-    # ("case_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
-    # ("case_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
-    # ("case_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.2)),
-    # ("case_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.4)),
-    # ("case_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.6)),
-    # ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.8)),
-    # ("case_9", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
+    ("case_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
+    ("case_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
+    ("case_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.2)),
+    ("case_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.4)),
+    ("case_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.6)),
+    ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.8)),
+    ("case_9", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
 ]
 
 # minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
-m = Model()
+# m = Model()
 
 function update_options!(base_options, case_options)
     for (key, case_value) in case_options
@@ -92,7 +105,7 @@ function load_multinetwork_data(case_name, dir, start_day, end_day)
 
     sorted_filenames = sort(filenames, by=filename -> extract_day_hour_from_filename(filename))
 
-    mn_data = Dict("nw" => Dict(), "per_unit" => true, "multinetwork" => true)
+    mn_data = Dict("nw" => Dict(), "per_unit" => true, "multinetwork" => true, "system" => Dict())
     last_nw_id = 0 
     for filename in sorted_filenames
         full_path = joinpath(case_dir, filename)
@@ -123,71 +136,82 @@ function main()
     mn_data = load_multinetwork_data(case_name, dir, start_day, end_day);
     string_nw_keys = Dict(string(k) => v for (k, v) in pairs(mn_data["nw"]))
     mn_data["nw"] = string_nw_keys
-
-    results_v = Dict(
-        "data" => Dict("mn_data" => mn_data),
-        "cases" => Dict()
-    )
-
+    
+    range_re_inj = 0:0.2:0.8
+    results_m = Matrix{Dict}(undef, length(configurations), length(range_re_inj))
     all_successful = true
 
-    for (case_label, case_options) in configurations
-        try
-            update_options!(options, case_options)
-            gurobi_opt = JuMP.optimizer_with_attributes(
-                Gurobi.Optimizer,
-                "OutputFlag" => 1,
-                # "QCPDual" => 1,
-                "MIPGap" => 1e-2, 
-                "FeasibilityTol" => 1e-3)
- 
-            result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, gurobi_opt, options, jump_model= m; multinetwork=true)
-                     
-            results_v["cases"][case_label] = Dict(
-                "Options" => deepcopy(options),
-                "Results" => result_mn[1],
-                "model" => result_mn[2],
-                "Error" => "None"
-            )
+    for (i, precentage_re_inj) in enumerate(range_re_inj)
+        options["re"]["precentage_re_inj"] = precentage_re_inj
+        for (j, (case_label, case_options)) in enumerate(configurations)
+            try
+                update_options!(options, case_options)
+                gurobi_opt = JuMP.optimizer_with_attributes(
+                    Gurobi.Optimizer,
+                    "OutputFlag" => 1,
+                    "MIPGap" => 1e-2, 
+                    "FeasibilityTol" => 1e-3)
+                
+                m = Model();
+                setting = setting_the_relax_values(relax_integrality)
+                
+                result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, gurobi_opt, options, jump_model= m; multinetwork=true, relax_integrality = relax_integrality,  setting=setting);                   
+                
+                results_m[j, i] = Dict(
+                    "Options" => deepcopy(options),
+                    "Results" => result_mn[1],
+                    "model" => result_mn[2],
+                    "Error" => "None"
+                )
 
-        catch e
-            println("Error processing $case_label: $e")
-            results_v["cases"][case_label] = Dict(
-                "Options" => deepcopy(options),
-                "Results" => Dict(),
-                "Error" => string(e)
-            )
-            all_successful = false
-            continue
+                if all_successful
+                    println("All cases were processed successfully.")
+                    JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\results_m_$case_name.jld2", "results_m", results_m)
+                else
+                    println("Some configurations were incorrect, check the intermediate results.")
+                end
+
+            catch e
+                println("Error processing case_$(case_label)_re_inj_$(precentage_re_inj): $e")
+                results_m[j, i] = Dict(
+                    "Options" => deepcopy(options),
+                    "Results" => Dict(),
+                    "Error" => string(e)
+                )
+                all_successful = false
+                continue
+            end
         end
-
-    end
-    
-    if all_successful
-        println("All cases were processed successfully.")
-        JLD2.save("results\\results_bus_$bus_system\\results_v_$case_name.jld2", "results_v", results_v)
-    else
-        println("Some configurations were incorrect, check the intermediate results.")
     end
 
-    # script_path = joinpath(pwd(), "post_processing.jl")
-    # if isfile(script_path)
-    #     include(script_path)
-    # end
-    return results_v
+    return results_m
 end
 
-results_v = main();
-result_mn = results_v["cases"]["case_2"]
-pm_1 = result_mn["model"];
-model_1 = pm_1.model
+results_m = main()
 
-fix_discrete_variables(model_1)
-optimize!(model_1)
-dual.(model_1.obj_dict[:Inertia_slack])
-println("Duals: ", dual.(model_1.obj_dict[:Inertia_slack]))
-sum(dual.(model_1.obj_dict[:Inertia_slack]))
-println("sum of duals: ", sum(dual.(model_1.obj_dict[:Inertia_slack])))
+# results_mn_1 = results_m[1, 1]
+# pm_1 = results_mn_1["model"];
+# model_1 = pm_1.model
+
+
+# result_mn = results_m["cases"]["case_2_re_inj_0.0_relax_true"]
+# pm_1 = result_mn["model"];
+# model_1 = pm_1.model
+
+
+
+# script_path = joinpath(pwd(), "post_processing.jl")
+# if isfile(script_path)
+#     include(script_path)
+# end
+
+# fix_discrete_variables(model_1)
+# optimize!(model_1)
+# Inertia_slack_($n, $i) for n in 1:24, i in 1:10
+# dual.(model_1.obj_dict[:In_slack])
+# println("Duals: ", dual.(model_1.obj_dict[:Inertia_slack]))
+# sum(dual.(model_1.obj_dict[:In_slack]))
+# println("sum of duals: ", sum(dual.(model_1.obj_dict[:Inertia_slack])))
 
 
 

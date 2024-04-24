@@ -425,7 +425,7 @@ end
 function solve_mn_opf_inertia_gen_exp(file, model_type, optimizer, options; kwargs...)
 
     model_builder = build_mn_opf_inertia_gen_exp(model_type, options)
-    return solve_model(file, model_type, optimizer, model_builder ;ref_extensions=[ref_add_connected_components!], multinetwork=false, kwargs...)
+    return solve_model(file, model_type, optimizer, model_builder ;ref_extensions=[ref_add_connected_components!], multinetwork=true ,kwargs...)
 
 end
 
@@ -433,6 +433,7 @@ end
 function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Dict{String}})
     # Define a function to build the OPF model for each network.
     function build_my_mn_opf_inertia_gen_exp(pm::AbstractPowerModel)
+
         # Iterate through each network
         sorted_nws = sort(collect(keys(nws(pm))))
         for n in sorted_nws
@@ -443,6 +444,8 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             baseMVA = ref(pm, n, :baseMVA)
             f_options = options["f"]
             v_options = options["v"]
+            re_options = options["re"]
+            re_x = re_options["precentage_re_inj"]
             alpha = f_options["alpha_factor"]
             calc_delta_P = f_options["calc_delta_P"] 
 
@@ -578,10 +581,19 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
                 JuMP.@constraint(pm.model, E_I_sM[n+1,i] == E_I_s[i])
             end
         end
-        JuMP.@constraint(pm.model, Inertia_slack, E_I_sM .<= 0)
-        # JuMP.@constraint(pm.model, In_slack[1:length(nws(pm)), 1:length(ids(pm, :bus))], E_I_sM .== 0)
-
-        constraint_min_renewable_injection(pm)
+        constraint_names = [ "Inertia_slack_($n, $i)" for n = 1:length(nws(pm)), i = 1:length(ids(pm, :bus)) ]
+        JuMP.@constraint(pm.model, constraint_names, E_I_sM .<= 0)
+        if _IM.report_duals(pm)
+            for n in sort(collect(keys(nws(pm))))
+                for i in ids(pm, n, :bus)
+                    sol(pm, n, :bus, i)[:lam_I_slack] = constraint_names[n+1, i]
+                end
+            end
+        end
+        # JuMP.@constraint(pm.model, Inertia_slack, E_I_sM .<= 0)
+        # JuMP.@constraint(pm.model, Inertia_slack[1:length(nws(pm)), 1:length(ids(pm, :bus))], E_I_sM .<= 0)
+        re_options = options["re"]
+        constraint_min_renewable_injection(pm, re_options)
         objective_with_generator_expansion_and_inertia_cost(pm)
 
     end

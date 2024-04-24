@@ -20,8 +20,7 @@ function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, i::Int; nw::Int
     constraint_gen_exp_power_on_off(pm, nw, i, gen["pmin"], gen["pmax"])
 end
 
-function constraint_min_renewable_injection(pm::AbstractPowerModel)
-
+function constraint_min_renewable_injection(pm::AbstractPowerModel, re_options::Dict{String, Float64})
 
     renewable_carriers = [3,4,5]
     total_renewable_pg_expr = JuMP.@expression(pm.model, 0)
@@ -41,7 +40,7 @@ function constraint_min_renewable_injection(pm::AbstractPowerModel)
         end
     end
 
-    constraint_min_renewable_injection(pm, total_renewable_pg_expr, total_load)
+    constraint_min_renewable_injection(pm, re_options, total_renewable_pg_expr, total_load)
 end
 
 

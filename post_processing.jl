@@ -17,7 +17,8 @@ using LightGraphs
 
 case_name = "mpc_multinetwork_10"
 bus_system = case_name[end-1:end]
-results_file = "results\\results_bus_$bus_system\\results_v_$case_name.jld2"
+relaxation = true
+results_file = "results\\results_bus_$bus_system\\relax_$relaxation\\results_m_$case_name.jld2"
 
 all_data = JLD2.load(results_file)["results_v"]
 mn_data = all_data["data"]["mn_data"]
@@ -31,7 +32,7 @@ function add_calculated_values_to_mn_data(test_cases, mn_data)
 
             total_pg = 0.0
             renewable_injection = 0.0
-            renewable_carriers = [2, 3, 4, 5]
+            renewable_carriers = [3, 4, 5]
             for nw in sort(collect(keys(all_data["cases"][test_case]["Results"]["solution"]["nw"])))
                 gen_data = mn_data["nw"][nw]["gen"]
                 total_pg += sum(gen["pg"] for (id, gen) in gen_data)

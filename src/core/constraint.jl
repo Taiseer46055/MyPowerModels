@@ -43,9 +43,12 @@ function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, n::Int, i::Int,
     
 end
 
-function constraint_min_renewable_injection(pm::AbstractPowerModel,total_renewable_pg_expr , total_load)
-    x = 0.95 # percentage of renewable energy
-    JuMP.@constraint(pm.model, total_renewable_pg_expr >= x * total_load)
+function constraint_min_renewable_injection(pm::AbstractPowerModel, re_options::Dict{String, Float64}, total_renewable_pg_expr , total_load)
+    re_x = re_options["precentage_re_inj"]
+    lam_re_x= JuMP.@constraint(pm.model, total_renewable_pg_expr >= re_x * total_load)
+    if _IM.report_duals(pm)
+        sol(pm, :system)[:lam_re_x] = lam_re_x
+    end    
 end
 
 
