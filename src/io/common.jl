@@ -37,6 +37,7 @@ function parse_files(filenames::String...)
         "nw" => Dict{String, Any}(),
         "per_unit" => true,
         "multinetwork" => true,
+        "system" => Dict{String, Any}(),
     )
 
     names = Array{String, 1}()

@@ -35,13 +35,13 @@ options = Dict(
         "inertia_constraint"=> "true", # "true", "false"
         "system" => "false", # "true", "false"
         "disturbance" => "large", # "small", "large" 
-        "weighted_area" => "load", # "load", "equal", "none"
-        "area" => "true", # "true", "false"
+        "weighted_area" => "none", # "load", "equal", "none"
+        "area" => "false", # "true", "false"
         "bus" => "false", # "true", "false"
         "calc_delta_P" => [1,500], # "internal" or array of [gen_id, delta_P in MW]
         "alpha_factor" => 0.1, # [0, 1]
-        "beta_factor" => 0.0, # [0, 1]
-        "rocof" => 0.2,
+        "beta_factor" => 1.0, # [0, 1]
+        "rocof" => 1.0,
     ), 
     "v" => Dict(
         "voltage_constraint" => "false",
@@ -63,9 +63,9 @@ configurations = [
     ("case_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
     ("case_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.2)),
     ("case_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.4)),
-    ("case_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.6)),
-    ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.8)),
-    ("case_9", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
+    # ("case_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.6)),
+    # ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.8)),
+    # ("case_9", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
 ]
 
 # minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
@@ -105,7 +105,7 @@ function load_multinetwork_data(case_name, dir, start_day, end_day)
 
     sorted_filenames = sort(filenames, by=filename -> extract_day_hour_from_filename(filename))
 
-    mn_data = Dict("nw" => Dict(), "per_unit" => true, "multinetwork" => true, "system" => Dict())
+    mn_data = Dict("nw" => Dict( ), "per_unit" => true, "multinetwork" => true, "system" => Dict())
     last_nw_id = 0 
     for filename in sorted_filenames
         full_path = joinpath(case_dir, filename)
@@ -120,7 +120,7 @@ function load_multinetwork_data(case_name, dir, start_day, end_day)
             last_nw_id = nw_id
             if isfile(full_path)
                 data = MyPowerModels.parse_file(full_path)
-                mn_data["nw"][nw_id] = data
+                mn_data["nw"][string(nw_id)] = data
             else
                 println("Data file $full_path not found. Skipping...")
             end
@@ -129,23 +129,25 @@ function load_multinetwork_data(case_name, dir, start_day, end_day)
 
     return mn_data
 end
-
+# mn_data = load_multinetwork_data(case_name, dir, start_day, end_day)
 
 function main()
 
-    mn_data = load_multinetwork_data(case_name, dir, start_day, end_day);
-    string_nw_keys = Dict(string(k) => v for (k, v) in pairs(mn_data["nw"]))
-    mn_data["nw"] = string_nw_keys
+    mn_data_main = load_multinetwork_data(case_name, dir, start_day, end_day);
+    string_nw_keys = Dict(string(k) => v for (k, v) in pairs(mn_data_main["nw"]))
+    mn_data_main["nw"] = string_nw_keys
     
-    range_re_inj = 0:0.2:0.8
+    range_re_inj = 0.4:0.4:0.8
     results_m = Matrix{Dict}(undef, length(configurations), length(range_re_inj))
     all_successful = true
 
     for (i, precentage_re_inj) in enumerate(range_re_inj)
         options["re"]["precentage_re_inj"] = precentage_re_inj
         for (j, (case_label, case_options)) in enumerate(configurations)
+            mn_data = deepcopy(mn_data_main);
             try
                 update_options!(options, case_options)
+                println("configurations: ", options)
                 gurobi_opt = JuMP.optimizer_with_attributes(
                     Gurobi.Optimizer,
                     "OutputFlag" => 1,
@@ -157,16 +159,17 @@ function main()
                 
                 result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, gurobi_opt, options, jump_model= m; multinetwork=true, relax_integrality = relax_integrality,  setting=setting);                   
                 
+
                 results_m[j, i] = Dict(
                     "Options" => deepcopy(options),
-                    "Results" => result_mn[1],
-                    "model" => result_mn[2],
-                    "Error" => "None"
+                    "Results" => result_mn,
+                    "Error" => "None",
+                    "mn_data" => deepcopy(mn_data)
                 )
 
                 if all_successful
                     println("All cases were processed successfully.")
-                    JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\results_m_$case_name.jld2", "results_m", results_m)
+                    JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\results_m_$case_name.jld2", "results_m", results_m, compress = true)
                 else
                     println("Some configurations were incorrect, check the intermediate results.")
                 end

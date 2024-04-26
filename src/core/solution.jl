@@ -1,11 +1,12 @@
-function _IM.solution_preprocessor(pm::AbstractPowerModel, solution::Dict)
+function _IM.solution_preprocessor(pm::AbstractPowerModel, solution::Dict; relax::Bool=false)
     per_unit = _IM.get_data(x -> x["per_unit"], pm.data, pm_it_name; apply_to_subnetworks = false)
     solution["it"][pm_it_name]["per_unit"] = per_unit
 
-    # add system to solution
-    solution["it"][pm_it_name]["system"] = Dict()
-    solution["it"][pm_it_name]["system"]["lam_re_x"] = JuMP.dual(sol(pm, :system)[:lam_re_x])
-
+    # # add system to solution
+    if relax
+        solution["it"][pm_it_name]["system"] = Dict()
+        solution["it"][pm_it_name]["system"]["lam_re_x"] = JuMP.dual(sol(pm, :system)[:lam_re_x])
+    end
     for (nw_id, nw_ref) in nws(pm)
         solution["it"][pm_it_name]["nw"]["$(nw_id)"]["baseMVA"] = nw_ref[:baseMVA]
     end

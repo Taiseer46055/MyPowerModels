@@ -8,8 +8,8 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
     # Extract options from the provided dictionary
     disturbance = f_options["disturbance"]
     system = f_options["system"]
-    area = f_options["area"]
-    bus = f_options["bus"]
+    area_large_disturbance = f_options["area"]
+    bus_large_disturbance = f_options["bus"]
     rocof = f_options["rocof"]
     weighted_area = f_options["weighted_area"]
     
@@ -42,32 +42,32 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
             # Area-specific inertia constraints
             # Initialize dictionaries to store area-specific data
             areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
-            for area in areas
+            for a in areas
                 E_I_area = Dict()
                 # Identify generators and loads within each area
-                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
-                buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == area]
-                E_I_area[area] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
+                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == a]
+                buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == a]
+                E_I_area[a] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
                 # Apply area-specific inertia constraints
                 #JuMP.@constraint(pm.model, E_I_area[area] >= E_I_min *  sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area))
-                JuMP.@constraint(pm.model, E_I_area[area] >= E_I_min/length(areas))
+                JuMP.@constraint(pm.model, E_I_area[a] >= E_I_min/length(areas))
             end
             
         elseif weighted_area == "load"
             # Area-specific inertia constraints
             areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
 
-            for area in areas
+            for a in areas
                 W_v = Dict()
                 E_I_area = Dict()
                 load_sum_area = Dict()
-                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
-                buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == area]
-                loads_in_area = [i for i in eachindex(load_data) if bus_data[load_data[i]["load_bus"]]["area"] == area]
-                load_sum_area[area] = sum(load_data[i]["pd"] for i in loads_in_area; init=0)
-                E_I_area[area] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
-                W_v[area] = load_sum_area[area] / P_load
-                JuMP.@constraint(pm.model,  E_I_area[area] >= E_I_min * W_v[area])
+                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == a]   
+                buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == a]
+                loads_in_area = [i for i in eachindex(load_data) if bus_data[load_data[i]["load_bus"]]["area"] == a]
+                load_sum_area[a] = sum(load_data[i]["pd"] for i in loads_in_area; init=0)
+                E_I_area[a] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
+                W_v[a] = load_sum_area[a] / P_load
+                JuMP.@constraint(pm.model,  E_I_area[a] >= E_I_min * W_v[a])
 
             end
 
@@ -100,9 +100,8 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
 
         end
     elseif disturbance == "large"
-  
-        if area == "true"
 
+        if area_large_disturbance == "true"
             # Initialize dictionaries to store area-specific data
             E_I_area = Dict()
             E_I_min_area = Dict()
@@ -112,26 +111,29 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
             pg = var(pm, n, :pg)
             beta = f_options["beta_factor"]
             areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
-            for area in areas
+            for a in areas
                 
                 # Identify generators and loads within each area
-                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == area]
-                buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == area]
+                gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == a]
+                buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == a]
                 
                 # Calculate load and potential delta_p for each area
-                P_load_area[area] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0) 
-                P_power_area_exp[area] = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_area))
-                delta_p_area[area] =  JuMP.@expression(pm.model, P_power_area_exp[area] - P_load_area[area])
-                E_I_min_area[area] = (delta_p_area[area] * f0 * beta / 2 * rocof)
-                E_I_area[area] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
+                P_load_area[a] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0) 
+                P_power_area_exp[a] = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_area))
+                delta_p_area[a] =  JuMP.@expression(pm.model, P_power_area_exp[a] - P_load_area[a])
+                E_I_min_area[a] = ((delta_p_area[a] * f0 * beta) / (2 * rocof))
+                E_I_area[a] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
+
                 # Apply area-specific inertia constraints
-                JuMP.@constraint(pm.model,  E_I_area[area] >= E_I_min_area[area])
-                JuMP.@constraint(pm.model,  E_I_area[area] >= (-1) * E_I_min_area[area])
+                JuMP.@constraint(pm.model,  E_I_area[a] >= E_I_min_area[a])
+                JuMP.@constraint(pm.model,  E_I_area[a] >= (-1) * E_I_min_area[a])
 
             end
+        else
+            println("Area is not set to true, it is: ", area)
         end
 
-        if bus == "true"
+        if bus_large_disturbance == "true"
             # Initialize dictionaries to store bus-specific data
             E_I_bus = Dict()
             E_I_min_bus = Dict()
@@ -142,7 +144,7 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
         
             buses = unique([bus_data[j]["bus"] for j in keys(bus_data)])  # Ändern Sie dies, um die eindeutigen Busse zu erhalten
         
-            for bus in buses  # Ändern Sie dies, um über die eindeutigen Busse zu iterieren
+            for bus in buses 
                 # Identify generators and loads within each bus
                 gens_in_bus = [i for i in eachindex(gen_data) if gen_data[i]["gen_bus"] == bus]
                 loads_in_bus = [i for i in eachindex(load_data) if load_data[i]["load_bus"] == bus]
@@ -151,7 +153,7 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 P_load_bus[bus] = sum(load_data[i]["pd"] for i in loads_in_bus; init=0) 
                 P_gen_bus_exprs[bus] = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_bus))
                 delta_p_bus[bus] =  JuMP.@expression(pm.model, P_gen_bus_exprs[bus] - P_load_bus[bus])
-                E_I_min_bus[bus] = (delta_p_bus[bus] * f0 * beta / 2 * rocof)
+                E_I_min_bus[bus] = ((delta_p_bus[bus] * f0 * beta) / (2 * rocof))
                 E_I_bus[bus] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_bus; init=0) + sum(E_I_s[bus]; init=0)
         
                 # Apply bus-specific inertia constraints

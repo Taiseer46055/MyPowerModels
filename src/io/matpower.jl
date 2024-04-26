@@ -723,7 +723,7 @@ end
 "Export power network data in the matpower format"
 function export_matpower(io::IO, data::Dict{String,Any})
     if _IM.ismultinetwork(data)
-        Memento.error(_LOGGER, "export_matpower does not yet support multinetwork data")
+        Memento.error(_LOGGER, "export_matpower does not yet support network data")
     end
 
     data = deepcopy(data)
@@ -883,8 +883,11 @@ function export_matpower(io::IO, data::Dict{String,Any})
             "\t", _get_default(gen, "mu_qmax", ""),
             "\t", _get_default(gen, "mu_qmin", ""),
             "\t", _get_default(gen, "H", ""),
-            "\t", _get_default(gen, "num_blocks", ""),
-            "\t", _get_default(gen, "state", ""),
+            "\t", _get_default(gen, "n0", ""),
+            "\t", _get_default(gen, "nE", ""),
+            "\t", _get_default(gen, "nE_max", ""),
+            "\t", _get_default(gen, "P_b_nom", ""),
+            "\t", _get_default(gen, "carrier", ""),
             "\t", _get_default(gen, "investment", ""),
         )
         i = i+1
