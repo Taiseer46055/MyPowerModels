@@ -17,7 +17,7 @@ bus_system = "10"
 dir = ".\\test\\data\\matpower\\multi_nw\\bus_$bus_system"
 case_name = "mpc_multinetwork_$bus_system" 
 start_day = 000  
-end_day = 007
+end_day = 014
 
 # Define the options for the optimization
 relax_integrality = true
@@ -57,12 +57,12 @@ options = Dict(
 )
 
 configurations = [
-    ("case_1", Dict("inertia_constraint" => "false", "system" => "false", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
+    # ("case_1", Dict("inertia_constraint" => "false", "system" => "false", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
     ("case_2", Dict("inertia_constraint" => "true", "system" => "true", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
-    ("case_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
-    ("case_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
-    ("case_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.2)),
-    ("case_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.4)),
+    # ("case_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
+    # ("case_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
+    # ("case_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.2)),
+    # ("case_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.4)),
     # ("case_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.6)),
     # ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.8)),
     # ("case_9", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
@@ -132,65 +132,80 @@ end
 # mn_data = load_multinetwork_data(case_name, dir, start_day, end_day)
 
 function main()
-
-    mn_data_main = load_multinetwork_data(case_name, dir, start_day, end_day);
+    mn_data_main = load_multinetwork_data(case_name, dir, start_day, end_day)
     string_nw_keys = Dict(string(k) => v for (k, v) in pairs(mn_data_main["nw"]))
     mn_data_main["nw"] = string_nw_keys
     
-    range_re_inj = 0.4:0.4:0.8
-    results_m = Matrix{Dict}(undef, length(configurations), length(range_re_inj))
-    all_successful = true
+    all_results = Dict()
+    range_re_inj = 0.0:0.4:0.8 
 
-    for (i, precentage_re_inj) in enumerate(range_re_inj)
-        options["re"]["precentage_re_inj"] = precentage_re_inj
-        for (j, (case_label, case_options)) in enumerate(configurations)
-            mn_data = deepcopy(mn_data_main);
+    for (j, (case_label, case_options)) in enumerate(configurations)
+
+        results_v = Dict{String, Dict}()
+        all_successful = true
+
+        for (i, precentage_re_inj) in enumerate(range_re_inj)
+            options["re"]["precentage_re_inj"] = precentage_re_inj
+
             try
                 update_options!(options, case_options)
-                println("configurations: ", options)
+                println("Processing case: $case_label with RE injection of $precentage_re_inj")
                 gurobi_opt = JuMP.optimizer_with_attributes(
                     Gurobi.Optimizer,
                     "OutputFlag" => 1,
                     "MIPGap" => 1e-2, 
                     "FeasibilityTol" => 1e-3)
                 
-                m = Model();
+                m = Model()
                 setting = setting_the_relax_values(relax_integrality)
                 
-                result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data, DCPPowerModel, gurobi_opt, options, jump_model= m; multinetwork=true, relax_integrality = relax_integrality,  setting=setting);                   
-                
-
-                results_m[j, i] = Dict(
-                    "Options" => deepcopy(options),
-                    "Results" => result_mn,
-                    "Error" => "None",
-                    "mn_data" => deepcopy(mn_data)
+                result_mn = solve_mn_opf_with_inertia_and_generator_expansion(mn_data_main, DCPPowerModel, gurobi_opt, options, jump_model=m; multinetwork=true, relax_integrality=relax_integrality, setting=setting)
+                i_string = string(i)
+                results_v[i_string] = Dict(
+                    "options" => deepcopy(options),
+                    "results" => result_mn,
+                    "error" => "None",
+                    "mn_data" => deepcopy(mn_data_main)
                 )
-
-                if all_successful
-                    println("All cases were processed successfully.")
-                    JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\results_m_$case_name.jld2", "results_m", results_m, compress = true)
-                else
-                    println("Some configurations were incorrect, check the intermediate results.")
-                end
-
             catch e
                 println("Error processing case_$(case_label)_re_inj_$(precentage_re_inj): $e")
-                results_m[j, i] = Dict(
-                    "Options" => deepcopy(options),
-                    "Results" => Dict(),
-                    "Error" => string(e)
+                i_string = string(i)
+                results_v[i_string] = Dict(
+                    "options" => deepcopy(options),
+                    "results" => Dict(),
+                    "error" => string(e),
+                    "mn_data" => deepcopy(mn_data_main)
                 )
                 all_successful = false
-                continue
             end
         end
+
+        JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\$case_label.jld2", "results", results_v, compress = true)
+        
+        all_results[case_label] = results_v
+        println(all_successful ? "Case $case_label processed successfully." : "Errors in case $case_label, check results.")
     end
 
-    return results_m
+    println("All configurations have been processed.")
+    return all_results
 end
 
-results_m = main()
+all_results = main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # results_mn_1 = results_m[1, 1]
 # pm_1 = results_mn_1["model"];

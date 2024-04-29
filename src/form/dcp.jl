@@ -26,6 +26,10 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
     E_I_s = var(pm, n, :E_I_s)
     # Define a new variable for the scaled system inertia
     E_I_sys = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in eachindex(gen_data))  + sum(E_I_s[i] for i in ids(pm, n, :bus) ; init=0)
+    # report the E_I_sys and E_I_min for each system
+    pm.ext[:E_I_sys] = E_I_sys
+    pm.data["E_I_sys"] = pm.ext[:E_I_sys]
+
 
     if system == "true"
         # Apply the system inertia constraint to the model
@@ -48,7 +52,10 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == a]
                 buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == a]
                 E_I_area[a] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
-                # Apply area-specific inertia constraints
+                # report the E_I_area for each area
+                sol(pm, n, :bus, a)[:E_I_area] = E_I_area[a]
+
+                #Apply area-specific inertia constraints
                 #JuMP.@constraint(pm.model, E_I_area[area] >= E_I_min *  sum(gen_data[i]["pmax"] * z[i] for i in gens_in_area))
                 JuMP.@constraint(pm.model, E_I_area[a] >= E_I_min/length(areas))
             end
@@ -67,6 +74,12 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 load_sum_area[a] = sum(load_data[i]["pd"] for i in loads_in_area; init=0)
                 E_I_area[a] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
                 W_v[a] = load_sum_area[a] / P_load
+                # report the load_sum_area, W_v and E_I_area for each area
+                sol(pm, n, :bus, a)[:load_sum_area] = load_sum_area[a]
+                sol(pm, n, :bus, a)[:W_v] = W_v[a]
+                sol(pm, n, :bus, a)[:E_I_area] = E_I_area[a]
+
+                # Apply area-specific inertia constraints
                 JuMP.@constraint(pm.model,  E_I_area[a] >= E_I_min * W_v[a])
 
             end
@@ -124,13 +137,19 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 E_I_min_area[a] = ((delta_p_area[a] * f0 * beta) / (2 * rocof))
                 E_I_area[a] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
 
+                # report the delta_p, E_I_min_area and E_I_area for each area
+            
+                sol(pm, n, :bus, a)[:delta_p_area] = delta_p_area[a]
+                sol(pm, n, :bus, a)[:E_I_min_area] = E_I_min_area[a]
+                sol(pm, n, :bus, a)[:E_I_area] = E_I_area[a]
+                
+
                 # Apply area-specific inertia constraints
                 JuMP.@constraint(pm.model,  E_I_area[a] >= E_I_min_area[a])
                 JuMP.@constraint(pm.model,  E_I_area[a] >= (-1) * E_I_min_area[a])
 
             end
-        else
-            println("Area is not set to true, it is: ", area)
+
         end
 
         if bus_large_disturbance == "true"
@@ -156,6 +175,10 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 E_I_min_bus[bus] = ((delta_p_bus[bus] * f0 * beta) / (2 * rocof))
                 E_I_bus[bus] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_bus; init=0) + sum(E_I_s[bus]; init=0)
         
+                # report the delta_p, E_I_min_bus and E_I_bus for each bus
+                sol(pm, n, :bus, bus)[:delta_p_bus] = delta_p_bus[bus]
+                sol(pm, n, :bus, bus)[:E_I_min_bus] = E_I_min_bus[bus]
+                sol(pm, n, :bus, bus)[:E_I_bus] = E_I_bus[bus]
                 # Apply bus-specific inertia constraints
                 JuMP.@constraint(pm.model,  E_I_bus[bus] >= E_I_min_bus[bus])
                 JuMP.@constraint(pm.model,  E_I_bus[bus] >= (-1) * E_I_min_bus[bus])

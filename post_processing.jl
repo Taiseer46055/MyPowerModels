@@ -13,213 +13,132 @@ using PowerPlots
 using Graphs
 using GraphPlot
 using LightGraphs
+using Glob
 
 
-case_name = "mpc_multinetwork_10"
-bus_system = case_name[end-1:end]
-relaxation = true
-results_file = "results\\results_bus_$bus_system\\relax_$relaxation\\results_m_$case_name.jld2"
-results_m = JLD2.load(results_file)["results_m"]
-#all_data = JLD2.load(results_file)["results_m"]
-# mn_data = all_data["data"]["mn_data"]
-# test_cases = sort(collect(keys(all_data["cases"])))
+bus_system = "10"
+relax_integrality = true
 
-function add_calculated_values_to_mn_data(results_m)
- 
-    for c in eachindex(results_m[:,1])
-        for x in eachindex(results_m[1,:])
-            case_results = results_m[c,x]
-            mn_data = case_results["mn_data"]
-            if case_results["Results"]["termination_status"] == JuMP.OPTIMAL
+function load_all_results(bus_system, relax_integrality)
 
-                total_pg = 0.0
-                renewable_injection = 0.0
-                renewable_carriers = [3, 4, 5]
-                for nw in sort(collect(keys(case_results["Results"]["solution"]["nw"])))
-                    gen_data = mn_data["nw"][nw]["gen"]
-                    total_pg += sum(gen["pg"] for (id, gen) in gen_data)
-                    renewable_injection += sum(gen["pg"] for (id, gen) in gen_data if gen["carrier"] in renewable_carriers)
-                end
-                print("Total PG: $total_pg")
-                if total_pg > 0
-                    re_inj = renewable_injection / total_pg
-                    case_results["Results"]["solution"]["re_inj"] = re_inj
-                else
-                    println("Gesamte Erzeugung (total_pg) für Fall $(test_case) ist 0, daher keine Berechnung des erneuerbaren Anteils möglich.")
-                end
-                println("Adding calculated values to mn_data for test case: $test_case")
-                for nw in sort(collect(keys(all_data["data"]["mn_data"]["nw"])))
+    path = "results\\results_bus_$(bus_system)\\relax_$(relax_integrality)"
+    files = glob("*.jld2", path)
+    
+    all_cases = Dict()
 
-                    case_data = case_results
-                    results = Dict()
-                    options = Dict()
-                    E_I_weighted_area = Dict()
-                    P_load_area = Dict()
-                    P_gen_area = Dict()
-                    delta_p_area = Dict()
-                    E_I_min_area = Dict()
-                    P_gen_bus = Dict()
-                    P_load_bus = Dict()
-                    delta_p_bus = Dict()
-                    E_I_min_bus = Dict()
-                    E_I_bus = Dict()
-                    E_I_weighted_area = Dict()
-                    E_I_weighted_area = Dict()
-                    E_I_area = Dict()
-                    E_I_min_area = Dict()
-            
+    for file in files
+        case_label = split(split(file, '\\')[end], '.')[1]
+        case_data = JLD2.load(file)["results"]
+        all_cases[case_label] = case_data
+    end
+    
+    return all_cases
+end
 
-                    results[test_case] = case_results["Results"]
-                    options[test_case] =  case_results["Options"]
-                    gen_data = mn_data["nw"][nw]["gen"]
-                    bus_data = mn_data["nw"][nw]["bus"]
-                    load_data = mn_data["nw"][nw]["load"]
-                    f0 = 50
-                    rocof = options[test_case]["f"]["rocof"]
-
-                    sol_gen_data = case_results["Results"]["solution"]["nw"][nw]["gen"]
-                    sol_bus_data = case_results["Results"]["solution"]["nw"][nw]["bus"]
+all_results = load_all_results(bus_system, relax_integrality)
 
 
-                    for (gen_id, gen) in gen_data
-                        if haskey(sol_gen_data, gen_id)
-                            gen_data[gen_id] = merge(gen_data[gen_id], sol_gen_data[gen_id])
+function add_missing_values_to_mn_data(all_results::Dict{Any, Any})
+    for (case_label, results_v) in all_results
+        for (i_string, result) in results_v
+            println("Adding missing values for case_label: $case_label, re_inj: $i_string")
+            println("Results: ", keys(result["results"]))
+            if result["results"]["termination_status"] == JuMP.OPTIMAL
+                for (nw, data) in result["results"]["solution"]["nw"]
+                    # Get gen_data and bus_data from mn_data
+                    gen_data_mn = result["mn_data"]["nw"][nw]["gen"]
+                    bus_data_mn = result["mn_data"]["nw"][nw]["bus"]
+
+                    # Get gen_data and bus_data from solution
+                    gen_data_solution = data["gen"]
+                    bus_data_solution = data["bus"]
+
+                    # Merge gen_data
+                    for (gen_id, gen) in gen_data_mn
+                        if haskey(gen_data_solution, gen_id)
+                            gen_data_mn[gen_id] = merge(gen, gen_data_solution[gen_id])
                         else
                             println("No matching gen_id found in sol_gen_data for gen_id: $gen_id")
                         end
                     end
 
-                    for (bus_id, bus) in bus_data
-                        if haskey(sol_bus_data, bus_id)
-                            bus_data[bus_id] = merge(bus_data[bus_id], sol_bus_data[bus_id])
+                    # Merge bus_data
+                    for (bus_id, bus) in bus_data_mn
+                        if haskey(bus_data_solution, bus_id)
+                            bus_data_mn[bus_id] = merge(bus, bus_data_solution[bus_id])
                         else
                             println("No matching bus_id found in sol_bus_data for bus_id: $bus_id")
                         end
                     end
-                    
-                    # Update mn_data with the updated gen_data and bus_data
-                    mn_data["nw"][nw]["gen"] = gen_data
-                    mn_data["nw"][nw]["bus"] = bus_data
-            
-                    for i in keys(gen_data)
-                        if gen_data[i]["gen_status"] < 1e-2
-                            gen_data[i]["gen_status"] = 0
-                        end
-                        if gen_data[i]["pg"] < 1e-2
-                            gen_data[i]["gen_status"] = 0
-                        end
-                    end
-                
-                    
-                    delta_P = mn_data["delta_P"]    
-                    E_I_min = mn_data["E_I_min"]
-                    all_data["data"]["mn_data"]["nw"][nw]["Delta_P"] = delta_P
-                    all_data["data"]["mn_data"]["nw"][nw]["E_I_min"] = E_I_min
+
+                    # Update mn_data with the merged data
+                    result["mn_data"]["nw"][nw]["gen"] = gen_data_mn
+                    result["mn_data"]["nw"][nw]["bus"] = bus_data_mn
+                end
+            else
+                println("No optimal solution found for case_label: $case_label, re_inj: $i_string")
+            end
+        end
+    end
+    return all_results
+end
+
+all_data = add_missing_values_to_mn_data(all_results)
 
 
-                    # add sum pmax and sum load for each bus to bus_data
-                    sum_p_max = Dict()
-                    sum_load = Dict()
-                    for bus_id in keys(bus_data)
-                        sum_p_max[bus_id] = sum(gen_data[i]["pmax"] for i in keys(gen_data) if string(gen_data[i]["gen_bus"]) == bus_id ; init=0)
-                        sum_load[bus_id] = sum(load_data[i]["pd"] for i in keys(load_data) if string(load_data[i]["load_bus"]) == bus_id; init=0)
-                        bus_data[bus_id]["sum_pmax"] = sum_p_max[bus_id]
-                        bus_data[bus_id]["sum_load"] = sum_load[bus_id]
-                    end
-
-                    E_I_sys = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * gen_data[i]["gen_status"] for i in keys(gen_data))
-                    all_data["data"]["mn_data"]["nw"][nw]["E_I_sys"] = E_I_sys
 
 
-                    if options[test_case]["f"]["weighted_area"] == "load" && options[test_case]["f"]["disturbance"] == "small"
-                            
-                        areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
-                        for area in areas
-                            gens_in_area = [i for i in keys(gen_data) if bus_data[string(gen_data[i]["gen_bus"])]["area"] == area]
-                            E_I_weighted_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * gen_data[i]["gen_status"] for i in gens_in_area; init=0)
-                            
-                            # all_data["data"]["mn_data"]["nw"][nw]["E_I_Weighted_Area_$area"] = E_I_weighted_area[area]
 
-                            # Add calculated value to bus_data
-                            for bus_id in keys(bus_data)
-                                if bus_data[bus_id]["area"] == area
-                                    bus_data[bus_id]["E_I_Weighted_Area"] = E_I_weighted_area[area]
-                                end
-                            end
-                        end
 
-                    elseif options[test_case]["f"]["weighted_area"] == "equal" && options[test_case]["f"]["disturbance"] == "small"
+#=
+function add_calculated_values_to_mn_data(all_results)
+ 
 
-                        areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
-                        for area in areas
-                            gens_in_area = [i for i in keys(gen_data) if bus_data[string(gen_data[i]["gen_bus"])]["area"] == area]
-                            E_I_weighted_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * gen_data[i]["gen_status"] for i in gens_in_area; init=0)
-                    
-                            # all_data["data"]["mn_data"]["nw"][nw]["E_I_Weighted_Area_$area"] = E_I_weighted_area[area]
-                    
-                            # Add calculated value to bus_data
-                            for bus_id in keys(bus_data)
-                                if bus_data[bus_id]["area"] == area
-                                    bus_data[bus_id]["E_I_Weighted_Area"] = E_I_weighted_area[area]
-                                end
-                            end
-                        end
-                    
+    if case_results["results"]["termination_status"] == JuMP.OPTIMAL
 
-                    else
-                        areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
-                        for area in areas
-                            E_I_weighted_area[area] = nothing
-                    
-                            # Add calculated value to bus_data
-                            for bus_id in keys(bus_data)
-                                if bus_data[bus_id]["area"] == area
-                                    bus_data[bus_id]["E_I_Weighted_Area"] = E_I_weighted_area[area]
-                                end
-                            end
-                        end
-                    end
+        for nw in sort(collect(keys(all_data["data"]["mn_data"]["nw"])))
 
-                    if options[test_case]["f"]["area"] == "true" && options[test_case]["f"]["disturbance"] == "large"
-                        areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
-                        for area in areas
-                            gens_in_area = [i for i in keys(gen_data) if bus_data[string(gen_data[i]["gen_bus"])]["area"] == area]
-                            buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == area]
-                            P_load_area[area] = sum(load_data[i]["pd"] for i in keys(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0)
-                            P_gen_area[area] = sum(gen_data[i]["pg"] for i in gens_in_area; init=0)
-                            delta_p_area[area] = abs(P_gen_area[area] - P_load_area[area])
-                            E_I_min_area[area] = (delta_p_area[area] * f0 / rocof * 2)
-                            E_I_area[area] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * gen_data[i]["gen_status"] for i in gens_in_area; init=0)
-                    
-                            # Add calculated values to bus_data
-                            for bus_id in keys(bus_data)
-                                if bus_data[bus_id]["area"] == area
-                                    bus_data[bus_id]["E_I_Area"] = E_I_area[area]
-                                    bus_data[bus_id]["Delta_P_Area"] = delta_p_area[area]
-                                    bus_data[bus_id]["E_I_Min_Area"] = E_I_min_area[area]
-                                end
-                            end
-                        end
-                    end
+            results[test_case] = case_results["results"]
+            options[test_case] =  case_results["options"]
+            gen_data = mn_data["nw"][nw]["gen"]
+            bus_data = mn_data["nw"][nw]["bus"]
+            load_data = mn_data["nw"][nw]["load"]
+            f0 = 50
+            rocof = options[test_case]["f"]["rocof"]
 
-                    if options[test_case]["f"]["bus"] == "true" && options[test_case]["f"]["disturbance"] == "large"
+            sol_gen_data = case_results["results"]["solution"]["nw"][nw]["gen"]
+            sol_bus_data = case_results["results"]["solution"]["nw"][nw]["bus"]
 
-                        for j in keys(bus_data)
-                            gens_at_bus = [i for i in keys(gen_data) if string(gen_data[i]["gen_bus"]) == j]
-                            P_gen_bus[j] = sum(gen_data[i]["pg"] for i in gens_at_bus; init=0)
-                            P_load_bus[j] = sum(load_data[i]["pd"] for i in keys(load_data) if string(load_data[i]["load_bus"]) == j; init=0)
-                            delta_p_bus[j] = abs(P_gen_bus[j] - P_load_bus[j])
-                            E_I_min_bus[j] = (delta_p_bus[j] * f0) / (P_load_bus[j] * 2 * rocof)
-                            E_I_bus[j] = sum(gen_data[i]["H"] * gen_data[i]["pmax"] * gen_data[i]["gen_status"] for i in gens_at_bus; init=0)
-                            
-                            # Add calculated values to bus_data
-                            bus_data[j]["E_I_Bus"] = E_I_bus[j]
-                            bus_data[j]["Delta_P_Bus"] = delta_p_bus[j]
-                            bus_data[j]["E_I_Min_Bus"] = E_I_min_bus[j]
-                        end
-                    end
+
+            for (gen_id, gen) in gen_data
+                if haskey(sol_gen_data, gen_id)
+                    gen_data[gen_id] = merge(gen_data[gen_id], sol_gen_data[gen_id])
+                else
+                    println("No matching gen_id found in sol_gen_data for gen_id: $gen_id")
                 end
             end
+
+            for (bus_id, bus) in bus_data
+                if haskey(sol_bus_data, bus_id)
+                    bus_data[bus_id] = merge(bus_data[bus_id], sol_bus_data[bus_id])
+                else
+                    println("No matching bus_id found in sol_bus_data for bus_id: $bus_id")
+                end
+            end
+            
+            # Update mn_data with the updated gen_data and bus_data
+            mn_data["nw"][nw]["gen"] = gen_data
+            mn_data["nw"][nw]["bus"] = bus_data
+    
+            for i in keys(gen_data)
+                if gen_data[i]["gen_status"] < 1e-2
+                    gen_data[i]["gen_status"] = 0
+                end
+                if gen_data[i]["pg"] < 1e-2
+                    gen_data[i]["gen_status"] = 0
+                end
+            end
+
         end
     end
     return all_data
@@ -269,6 +188,7 @@ pmdfs = create_power_models_data_frames(all_data, test_cases)
 
 
 
+=#
 
 
 
