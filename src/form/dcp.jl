@@ -131,7 +131,12 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
                 buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == a]
                 
                 # Calculate load and potential delta_p for each area
-                P_load_area[a] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0) 
+                P_load_area[a] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0)
+                # Debug fürs testen ######
+                if P_load_area[a] < 0
+                    P_load_area[a] = 0
+                end
+                ############################
                 P_power_area_exp[a] = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_area))
                 delta_p_area[a] =  JuMP.@expression(pm.model, P_power_area_exp[a] - P_load_area[a])
                 E_I_min_area[a] = ((delta_p_area[a] * f0 * beta) / (2 * rocof))

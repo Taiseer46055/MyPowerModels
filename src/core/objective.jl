@@ -84,12 +84,29 @@ function expression_investment_cost(pm::AbstractPowerModel; report::Bool=true)
 
 end
 
+function expression_operating_cost(pm::AbstractPowerModel; report::Bool=true)
+    operational_cost = Dict()
+    
+    for (n, nw_ref) in nws(pm)
+        gen_data = ref(pm, n, :gen)
+        
+        for (i, gen) in gen_data
+            operational_cost[i] = ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
+            ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
+            var(pm, n,   :pg_cost, i)
+        end
+        report && sol_component_value(pm, n, :gen, :operational_cost, ids(pm, n, :gen), operational_cost)
+    end
+
+end
+
 function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerModel;kwargs...)
 
     expression_pg_cost(pm; kwargs...)
     expression_p_dc_cost(pm; kwargs...)
     expression_startup_shutdown_cost(pm; kwargs...)
     expression_investment_cost(pm; kwargs...)
+    expression_operating_cost(pm; kwargs...)
 
     # operating cost for generators and dclines
     operational_cost = sum(

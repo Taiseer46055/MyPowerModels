@@ -17,8 +17,346 @@ using Glob
 
 
 bus_system = "10"
-relax_integrality = true
+relax_integrality = false
 
+function load_all_results(bus_system, relax_integrality)
+
+    path = "results\\results_bus_$(bus_system)\\relax_$(relax_integrality)"
+    files = filter(f -> endswith(f, ".jld2"), readdir(path))
+    println("Files: ", files)
+    all_data = Dict()
+
+    for file in files
+        basename = split(file, '\\')[end]
+        case_label = join(split(basename, '_')[1:2], '_')
+        re_inj_int = split(split(basename, '.')[1], '_')[end]
+        data = JLD2.load(joinpath(path, file))
+    
+        if haskey(data, "results")
+            case_data = data["results"]
+        else
+            println("Key 'results' not found in file $file")
+            continue
+        end
+        
+        if haskey(all_data, case_label)
+            all_data[case_label][re_inj_int] = case_data
+        else
+            all_data[case_label] = Dict(re_inj_int => case_data)
+        end
+    end
+
+    mn_data_main = JLD2.load(joinpath(path, "mn_data_main.jld2"))["mn_data_main"]
+    
+    return all_data, mn_data_main
+end
+
+all_data, mn_data_main = load_all_results(bus_system, relax_integrality);
+
+function add_missing_values_to_sol_data(all_data::Dict{Any, Any}, mn_data_main)
+
+    for (case_label, results_v) in all_data
+        for (re_inj_int, result) in results_v
+            println("Adding missing values for case_label: $case_label, re_inj: $re_inj_int")
+            if  result["results"]["termination_status"] == JuMP.OPTIMAL
+                for (nw, data) in result["results"]["solution"]["nw"]
+                    # Get gen_data and bus_data from mn_data_main
+                    gen_data_mn = mn_data_main["nw"][nw]["gen"]
+                    bus_data_mn = mn_data_main["nw"][nw]["bus"]
+                    branch_data_mn = mn_data_main["nw"][nw]["branch"]
+
+                    # Get gen_data and bus_data from solution
+                    gen_data_solution = data["gen"]
+                    bus_data_solution = data["bus"]
+                    branch_data_solution = data["branch"]
+
+                    # Merge gen_data
+                    for (gen_id, gen) in gen_data_solution
+                        if haskey(gen_data_mn, gen_id)
+                            gen_data_solution[gen_id] = merge((x, y) -> ismissing(x) ? y : x, gen, gen_data_mn[gen_id])
+                        else
+                            println("No matching gen_id found in mn_data_main for gen_id: $gen_id")
+                        end
+                    end
+
+                    # Merge bus_data
+                    for (bus_id, bus) in bus_data_solution
+                        if haskey(bus_data_mn, bus_id)
+                            bus_data_solution[bus_id] = merge((x, y) -> ismissing(x) ? y : x, bus, bus_data_mn[bus_id])
+                        else
+                            println("No matching bus_id found in mn_data_main for bus_id: $bus_id")
+                        end
+                    end
+
+                    # Merge branch_data
+                    for (branch_id, branch) in branch_data_solution
+                        if haskey(branch_data_mn, branch_id)
+                            branch_data_solution[branch_id] = merge((x, y) -> ismissing(x) ? y : x, branch, branch_data_mn[branch_id])
+                        else
+                            println("No matching branch_id found in mn_data_main for branch_id: $branch_id")
+                        end
+                    end
+
+                    # Update solution data with the merged data
+                    data["gen"] = gen_data_solution
+                    data["bus"] = bus_data_solution
+                    data["branch"] = branch_data_solution
+
+                end
+            else
+                println("No optimal solution found for case_label: $case_label, re_inj: $re_inj_int")
+            end
+        end
+    end
+    return all_data, mn_data_main
+end
+
+all_sol_data = add_missing_values_to_sol_data(all_data, mn_data_main)[1];
+mn_data_main = add_missing_values_to_sol_data(all_data, mn_data_main)[2];
+
+
+function create_dataframes(all_sol_data::Dict{Any, Any})
+    dfs = Dict()
+
+    zeitabhaengige_variablen = Set(["pg", "pf", "pt", "gen_status", "gen_startup", "gen_shutdown"])
+
+    for (case_label, results_v) in all_sol_data
+        for (re_inj_int, result) in results_v
+            case_re_label = "$(case_label)_$(re_inj_int)"
+            dfs[case_re_label] = Dict()
+            if result["results"]["termination_status"] == JuMP.OPTIMAL
+                for comp in ["gen", "bus", "branch"]
+                    alle_vars = Set()
+                    for (_, comp_data) in result["results"]["solution"]["nw"]
+                        if haskey(comp_data, comp)
+                            for (_, details) in comp_data[comp]
+                                union!(alle_vars, keys(details))
+                            end
+                        end
+                    end
+                    nicht_zeitabhaengige_vars = setdiff(alle_vars, zeitabhaengige_variablen)
+
+                    for var in zeitabhaengige_variablen
+                        data = Dict()
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    if !haskey(data, nw)
+                                        data[nw] = Dict()
+                                    end
+                                    data[nw][id] = get(details, var, NaN)
+                                end
+                            end
+                        end
+                        if isempty(data)
+                            continue
+                        end
+                        nw_keys = collect(keys(data))
+                        id_keys = collect(keys(data[first(nw_keys)]))
+                        matrix = [get(get(data, nw, Dict()), id, NaN) for nw in nw_keys, id in id_keys]
+                        df = DataFrame(matrix, Symbol.(id_keys))
+                        insertcols!(df, 1, :nw => nw_keys)
+                        dfs[case_re_label]["$(comp)_$(var)"] = df
+                    end
+
+                    for var in nicht_zeitabhaengige_vars
+                        simple_data = []
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    push!(simple_data, (nw=nw, id=id, value=get(details, var, NaN)))
+                                end
+                            end
+                        end
+                        if isempty(simple_data)
+                            continue
+                        end
+                        df = DataFrame(simple_data, [:nw, :id, Symbol(var)])
+                        dfs[case_re_label]["$(comp)_$(var)"] = df
+                    end
+                end
+            end
+        end
+    end
+
+    return dfs
+end
+
+dfs = create_dataframes(all_sol_data)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#=
+function create_dataframes(all_sol_data::Dict{Any, Any})
+    # Dictionary, das alle DataFrames enthält
+    dfs = Dict()
+
+    # Definieren der Menge von zeitabhängigen Variablen
+    zeitabhaengige_variablen = Set(["pg", "pf", "pt", "gen_status", "gen_startup", "gen_shutdown"])
+
+    for (case_label, results_v) in all_sol_data
+        case_dict = Dict()
+        
+        for (re_inj_int, result) in results_v
+            re_inj_dict = Dict()
+
+            if result["results"]["termination_status"] == JuMP.OPTIMAL
+                for comp in ["gen", "bus", "branch"]
+                    # Alle Variablen für die Komponente sammeln
+                    alle_vars = Set()
+                    for (_, comp_data) in result["results"]["solution"]["nw"]
+                        if haskey(comp_data, comp)
+                            for (_, details) in comp_data[comp]
+                                union!(alle_vars, keys(details))
+                            end
+                        end
+                    end
+                    nicht_zeitabhaengige_vars = setdiff(alle_vars, zeitabhaengige_variablen)
+
+                    # Verarbeitung der zeitabhängigen Variablen
+                    for var in zeitabhaengige_variablen
+                        data = Dict()
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    if !haskey(data, nw)
+                                        data[nw] = Dict()
+                                    end
+                                    data[nw][id] = get(details, var, NaN)
+                                end
+                            end
+                        end
+                        if isempty(data)
+                            continue
+                        end
+                        nw_keys = collect(keys(data))
+                        id_keys = collect(keys(data[first(nw_keys)]))
+                        matrix = [get(get(data, nw, Dict()), id, NaN) for nw in nw_keys, id in id_keys]
+                        df = DataFrame(matrix, Symbol.(id_keys))
+                        insertcols!(df, 1, :nw => nw_keys)
+                        re_inj_dict["$(comp)_$(var)"] = df
+                    end
+
+                    # Verarbeitung der nicht-zeitabhängigen Variablen
+                    for var in nicht_zeitabhaengige_vars
+                        simple_data = []
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    push!(simple_data, (nw=nw, id=id, value=get(details, var, NaN)))
+                                end
+                            end
+                        end
+                        if isempty(simple_data)
+                            continue
+                        end
+                        df = DataFrame(simple_data, [:nw, :id, Symbol(var)])
+                        re_inj_dict["$(comp)_$(var)"] = df
+                    end
+                end
+            end
+            case_dict["$re_inj_int"] = re_inj_dict
+        end
+        dfs["$case_label"] = case_dict
+    end
+
+    return dfs
+end
+
+dfs_t = create_dataframes(all_sol_data)
+
+=#
+
+
+#=
+function create_dataframes(all_sol_data::Dict{Any, Any})
+    df_dict = Dict()
+    zeitabhaengige_variablen = Set(["pg", "pf", "pt", "gen_status", "gen_startup", "gen_shutdown"])
+
+    for (case_label, results_v) in all_sol_data
+        for (re_inj_int, result) in results_v
+            if result["results"]["termination_status"] == JuMP.OPTIMAL
+                for comp in ["gen", "bus", "branch"]
+                    # Alle Variablen sammeln
+                    alle_vars = Set()
+                    for (_, comp_data) in result["results"]["solution"]["nw"]
+                        if haskey(comp_data, comp)
+                            for (_, details) in comp_data[comp]
+                                union!(alle_vars, keys(details))
+                            end
+                        end
+                    end
+                    nicht_zeitabhaengige_vars = setdiff(alle_vars, zeitabhaengige_variablen)
+
+                    # Verarbeitung der zeitabhängigen Variablen
+                    for var in zeitabhaengige_variablen
+                        data = Dict()
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    if !haskey(data, nw)
+                                        data[nw] = Dict()
+                                    end
+                                    data[nw][id] = get(details, var, NaN)
+                                end
+                            end
+                        end
+                        if isempty(data)
+                            continue
+                        end
+                        nw_keys = collect(keys(data))
+                        id_keys = collect(keys(data[first(nw_keys)]))
+                        matrix = [get(get(data, nw, Dict()), id, NaN) for nw in nw_keys, id in id_keys]
+                        df = DataFrame(matrix, Symbol.(id_keys))
+                        insertcols!(df, 1, :nw => nw_keys)
+                        df_dict["$(case_label)_$(re_inj_int)_$(comp)_$(var)"] = df
+                    end
+
+                    # Verarbeitung der nicht-zeitabhängigen Variablen
+                    for var in nicht_zeitabhaengige_vars
+                        simple_data = []
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    push!(simple_data, (nw=nw, id=id, value=get(details, var, NaN)))
+                                end
+                            end
+                        end
+                        if isempty(simple_data)
+                            continue
+                        end
+                        df = DataFrame(simple_data, [:nw, :id, Symbol(var)])
+                        df_dict["$(case_label)_$(re_inj_int)_$(comp)_$(var)_simple"] = df
+                    end
+                end
+            end
+        end
+    end
+
+    return df_dict
+end
+
+dfs_t = create_dataframes(all_sol_data)
+
+=#
+
+
+
+
+
+
+#=
 function load_all_results(bus_system, relax_integrality)
 
     path = "results\\results_bus_$(bus_system)\\relax_$(relax_integrality)"
@@ -36,6 +374,7 @@ function load_all_results(bus_system, relax_integrality)
 end
 
 all_results = load_all_results(bus_system, relax_integrality)
+
 
 
 function add_missing_values_to_mn_data(all_results::Dict{Any, Any})
@@ -84,6 +423,59 @@ function add_missing_values_to_mn_data(all_results::Dict{Any, Any})
 end
 
 all_data = add_missing_values_to_mn_data(all_results)
+
+
+
+function convert_all_data_to_powermodels_dataframe(all_sol_data, re_inj_int)
+    dfs_gen = Dict{String, DataFrame}()
+    dfs_bus = Dict{String, DataFrame}()
+    dfs_branch = Dict{String, DataFrame}()
+    
+    for (case_label, results_v) in all_sol_data
+        for (re_inj, result) in results_v
+            df_gen = DataFrame()
+            df_bus = DataFrame()
+            df_branch = DataFrame()
+
+            for (nw, data) in result["results"]["solution"]["nw"]
+                gen_data = data["gen"]
+                bus_data = data["bus"]
+                branch_data = data["branch"]
+
+                for (gen_key, gen_values) in gen_data
+                    df = DataFrame(value = gen_values)
+                    df[!, :nw] = repeat([nw], nrow(df))
+                    df[!, :gen_key] = repeat([gen_key], nrow(df))
+                    df_gen = vcat(df_gen, df)
+                end
+
+                for (bus_key, bus_values) in bus_data
+                    df = DataFrame(value = bus_values)
+                    df[!, :nw] = repeat([nw], nrow(df))
+                    df[!, :bus_key] = repeat([bus_key], nrow(df))
+                    df_bus = vcat(df_bus, df)
+                end
+
+                for (branch_key, branch_values) in branch_data
+                    df = DataFrame(value = branch_values)
+                    df[!, :nw] = repeat([nw], nrow(df))
+                    df[!, :branch_key] = repeat([branch_key], nrow(df))
+                    df_branch = vcat(df_branch, df)
+                end
+            end
+
+            dfs_gen["$(case_label)_$(re_inj)"] = df_gen
+            dfs_bus["$(case_label)_$(re_inj)"] = df_bus
+            dfs_branch["$(case_label)_$(re_inj)"] = df_branch
+        end
+    end
+    return dfs_gen, dfs_bus, dfs_branch
+end
+
+dfs_gen, dfs_bus, dfs_branch = convert_all_data_to_powermodels_dataframe(all_sol_data, "re_inj_int")
+
+=#
+
 
 
 
