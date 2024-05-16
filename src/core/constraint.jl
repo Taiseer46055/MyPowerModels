@@ -49,9 +49,21 @@ function constraint_min_renewable_injection(pm::AbstractPowerModel, re_options::
     JuMP.@constraint(pm.model, lam_re_x, total_renewable_pg_expr >= re_x * total_load)
     if _IM.report_duals(pm)
         sol(pm, :system)[:lam_re_x] = lam_re_x
-    end 
-
+    end
 end
+
+
+function constraint_limit_phs_injection(pm::AbstractPowerModel, total_phs_pg_pump_expr, total_phs_pg_turb_expr, total_load)
+
+    pm.ext[:total_phs_pg_pump_expr] = total_phs_pg_pump_expr
+    pm.ext[:total_phs_pg_turb_expr] = total_phs_pg_turb_expr
+    pm.data["total_phs_pg_pump_expr"] = pm.ext[:total_phs_pg_pump_expr]
+    pm.data["total_phs_pg_turb_expr"] = pm.ext[:total_phs_pg_turb_expr]
+    JuMP.@constraint(pm.model, total_phs_pg_pump_expr <= 0.28 * total_load)
+    JuMP.@constraint(pm.model, total_phs_pg_turb_expr == 0.75 * total_phs_pg_pump_expr)
+end
+
+
 
 
 ################################### End Taiseer Code #########################

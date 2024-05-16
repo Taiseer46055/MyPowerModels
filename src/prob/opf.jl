@@ -313,9 +313,9 @@ function build_mn_opf_inertia(model_type::Type, options::Dict{String, Dict{Strin
             end
             for i in ids(pm, :storage, nw=n)
                 constraint_storage_state(pm, i, nw=n)
-                constraint_storage_complementarity_mi(pm, i, nw=n)
-                constraint_storage_losses(pm, i, nw=n)
-                constraint_storage_thermal_limit(pm, i, nw=n)
+                constraint_storage_complementarity_mi(pm, i, nw=n) #
+                constraint_storage_losses(pm, i, nw=n) #
+                constraint_storage_thermal_limit(pm, i, nw=n) #
             end
             for i in ids(pm, :branch, nw=n)
                 constraint_ohms_yt_from(pm, i, nw=n)
@@ -594,6 +594,7 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
         # JuMP.@constraint(pm.model, Inertia_slack[1:length(nws(pm)), 1:length(ids(pm, :bus))], E_I_sM .<= 0)
         re_options = options["re"]
         constraint_min_renewable_injection(pm, re_options)
+        constraint_limit_phs_injection(pm)
         objective_with_generator_expansion_and_inertia_cost(pm)
 
     end

@@ -57,14 +57,14 @@ options = Dict(
 )
 
 configurations = [
-    # ("case_1", Dict("inertia_constraint" => "false", "system" => "false", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
+    ("case_1", Dict("inertia_constraint" => "false", "system" => "false", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
     # ("case_2", Dict("inertia_constraint" => "true", "system" => "true", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
     # ("case_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
     # ("case_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
     # ("case_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.25)),
     # ("case_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.50)),
     # ("case_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.75)),
-    ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
+    # ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
 ]
 
 # minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
@@ -135,10 +135,10 @@ function main()
     string_nw_keys = Dict(string(k) => v for (k, v) in pairs(mn_data_main["nw"]))
     mn_data_main["nw"] = string_nw_keys
 
-    # JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\mn_data_main.jld2", "mn_data_main", mn_data_main)
+    #JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\mn_data_main.jld2", "mn_data_main", mn_data_main)
 
     all_results = Dict()
-    range_re_inj = 0.25 #0.35:0.35:0.7
+    range_re_inj = 0.35:0.35:0.7
 
     for (j, (case_label, case_options)) in enumerate(configurations)
 
@@ -169,7 +169,7 @@ function main()
                     "error" => "None",
                 )
 
-                #JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\$(case_label)_$re_inj_int.jld2", "results", results_v)
+                JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\$(case_label)_$re_inj_int.jld2", "results", results_v)
             catch e
                 println("Error processing case_$(case_label)_re_inj_$(precentage_re_inj): $e")
                 results_v = Dict(
@@ -192,64 +192,62 @@ end
 all_results = main()
 
 
-function get_max_load_per_bus(mn_data)
-    max_loads_per_bus = Dict()
-    for (nw_key, nw_value) in pairs(mn_data["nw"])
-        for (load_key, load) in pairs(nw_value["load"])
-            if haskey(max_loads_per_bus, load_key)
-                max_loads_per_bus[load_key] = max(max_loads_per_bus[load_key], load["pd"])
-            else
-                max_loads_per_bus[load_key] = load["pd"]
-            end
-        end
-    end
-    return max_loads_per_bus
-end
-# get min load per bus
+# function get_max_load_per_bus(mn_data)
+#     max_loads_per_bus = Dict()
+#     for (nw_key, nw_value) in pairs(mn_data["nw"])
+#         for (load_key, load) in pairs(nw_value["load"])
+#             if haskey(max_loads_per_bus, load_key)
+#                 max_loads_per_bus[load_key] = max(max_loads_per_bus[load_key], load["pd"])
+#             else
+#                 max_loads_per_bus[load_key] = load["pd"]
+#             end
+#         end
+#     end
+#     return max_loads_per_bus
+# end
+# # get min load per bus
 
-function get_min_load_per_bus(mn_data)
-    min_loads_per_bus = Dict()
-    for (nw_key, nw_value) in pairs(mn_data["nw"])
-        for (load_key, load) in pairs(nw_value["load"])
-            if haskey(min_loads_per_bus, load_key)
-                min_loads_per_bus[load_key] = min(min_loads_per_bus[load_key], load["pd"])
-            else
-                min_loads_per_bus[load_key] = load["pd"]
-            end
-        end
-    end
-    return min_loads_per_bus
-end
+# function get_min_load_per_bus(mn_data)
+#     min_loads_per_bus = Dict()
+#     for (nw_key, nw_value) in pairs(mn_data["nw"])
+#         for (load_key, load) in pairs(nw_value["load"])
+#             if haskey(min_loads_per_bus, load_key)
+#                 min_loads_per_bus[load_key] = min(min_loads_per_bus[load_key], load["pd"])
+#             else
+#                 min_loads_per_bus[load_key] = load["pd"]
+#             end
+#         end
+#     end
+#     return min_loads_per_bus
+# end
 
-min_loads_per_bus = get_min_load_per_bus(mn_data)
-
-
-max_loads_per_bus = get_max_load_per_bus(mn_data)
-
-function get_max_power_per_bus(mn_data)
-    max_power_per_bus = Dict()
-    for (gen_key, gen) in pairs(mn_data["nw"]["1"]["gen"])
-        if gen["carrier"] in [0, 1, 2]
-            power = gen["pmax"] * gen["nE_max"]
-            gen_bus_str = string(gen["gen_bus"])
-            if haskey(max_power_per_bus, gen_bus_str)
-                max_power_per_bus[gen_bus_str] = max(max_power_per_bus[gen_bus_str], power)
-            else
-                max_power_per_bus[gen_bus_str] = power
-            end
-        end
-    end
-    return max_power_per_bus
-end
-
-max_power_per_bus = get_max_power_per_bus(mn_data)
-
-sorted_power_per_bus = sort(max_power_per_bus, by = x -> x[1])
-sorted_loads_per_bus = sort(max_loads_per_bus, by = x -> x[1])
-
-difference = sort(Dict(k => sorted_power_per_bus[k] - sorted_loads_per_bus[k] for k in keys(sorted_power_per_bus)))
+# min_loads_per_bus = get_min_load_per_bus(mn_data)
 
 
+# max_loads_per_bus = get_max_load_per_bus(mn_data)
+
+# function get_max_power_per_bus(mn_data)
+#     max_power_per_bus = Dict()
+#     for (gen_key, gen) in pairs(mn_data["nw"]["1"]["gen"])
+#         if gen["carrier"] in [0, 1, 2]
+#             power = gen["pmax"] * gen["nE_max"]
+#             gen_bus_str = string(gen["gen_bus"])
+#             if haskey(max_power_per_bus, gen_bus_str)
+#                 max_power_per_bus[gen_bus_str] = max(max_power_per_bus[gen_bus_str], power)
+#             else
+#                 max_power_per_bus[gen_bus_str] = power
+#             end
+#         end
+#     end
+#     return max_power_per_bus
+# end
+
+# max_power_per_bus = get_max_power_per_bus(mn_data)
+
+# sorted_power_per_bus = sort(max_power_per_bus, by = x -> x[1])
+# sorted_loads_per_bus = sort(max_loads_per_bus, by = x -> x[1])
+
+# difference = sort(Dict(k => sorted_power_per_bus[k] - sorted_loads_per_bus[k] for k in keys(sorted_power_per_bus)))
 
 
 

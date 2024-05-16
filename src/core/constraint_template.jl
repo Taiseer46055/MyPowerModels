@@ -44,6 +44,37 @@ function constraint_min_renewable_injection(pm::AbstractPowerModel, re_options::
 end
 
 
+function constraint_limit_phs_injection(pm::AbstractPowerModel)
+
+    turb_carriers = [7]
+    pump_carriers = [8]
+    total_phs_pg_turb_expr = JuMP.@expression(pm.model, 0)
+    total_phs_pg_pump_expr = JuMP.@expression(pm.model, 0)
+    total_load = sum(ref(pm, n, :weight) * 
+                    sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in ref(pm, n, :load))
+                    for (n, _) in nws(pm))
+
+    for (n, _) in nws(pm)
+        weight = ref(pm, n, :weight)
+        gen_data = ref(pm, n, :gen)
+
+        for id in keys(gen_data)
+            if gen_data[id]["carrier"] in pump_carriers
+                JuMP.@expression(pm.model, total_phs_pg_pump_expr += weight * var(pm, n, :pg)[id])
+            end
+        end
+
+        for id in keys(gen_data)
+            if gen_data[id]["carrier"] in turb_carriers
+                JuMP.@expression(pm.model, total_phs_pg_turb_expr += weight * var(pm, n, :pg)[id])
+            end
+        end
+    end
+    println("Total injection Turb = ", total_phs_pg_turb_expr)
+    println("Total injection Pump = ", total_phs_pg_pump_expr)
+    constraint_limit_phs_injection(pm, total_phs_pg_pump_expr, total_phs_pg_turb_expr, total_load)
+end
+
 ################################### End Taiseer Code #########################
 
 ### Voltage Constraints ###

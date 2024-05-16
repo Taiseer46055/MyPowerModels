@@ -42,8 +42,8 @@ function objective_min_fuel_and_flow_with_startup_shutdown_cost(pm::AbstractPowe
         sum(ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
         ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
         var(pm, n,   :pg_cost, i)
-        for (i, gen) in nw_ref[:gen]) +
-        sum(ar(pm, n, :p_dc_cost, i) for (i, dcline) in nw_ref[:dcline]; init=0)
+        for (i, gen) in nw_ref[:gen])
+        # + sum(ar(pm, n, :p_dc_cost, i) for (i, dcline) in nw_ref[:dcline]; init=0)
     for (n, nw_ref) in nws(pm))
 
     println("Total Cost = ", total_cost)
@@ -111,11 +111,11 @@ function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerMo
     # operating cost for generators and dclines
     operational_cost = sum(
         sum(
-        ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
-        ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
-        var(pm, n,   :pg_cost, i) for (i, gen) in nw_ref[:gen]) +
-        sum(var(pm, n, :p_dc_cost, i) for (i,dcline) in nw_ref[:dcline]; init=0)
-            for (n, nw_ref) in nws(pm)
+            ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
+            ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
+            var(pm, n,   :pg_cost, i) for (i, gen) in nw_ref[:gen]) 
+            # + sum(var(pm, n, :p_dc_cost, i) for (i,dcline) in nw_ref[:dcline]; init=0)
+        for (n, nw_ref) in nws(pm)
         )
 
     investment_cost = sum(

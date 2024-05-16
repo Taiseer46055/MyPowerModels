@@ -4,6 +4,7 @@ using MyPowerModels
 using JuMP
 using Gurobi
 using Plots
+using Plots: text
 using Ipopt
 using Juniper
 using JLD2
@@ -14,12 +15,15 @@ using Graphs
 using GraphPlot
 using LightGraphs
 using Glob
+using Colors
+using Random
 
 
 bus_system = "10"
 relax_integrality = false
 
 function load_all_results(bus_system, relax_integrality)
+    closeall()
 
     path = "results\\results_bus_$(bus_system)\\relax_$(relax_integrality)"
     files = filter(f -> endswith(f, ".jld2"), readdir(path))
@@ -115,10 +119,498 @@ all_sol_data = add_missing_values_to_sol_data(all_data, mn_data_main)[1];
 mn_data_main = add_missing_values_to_sol_data(all_data, mn_data_main)[2];
 
 
+
+
+function create_dataframes(all_sol_data::Dict{Any, Any})
+    dfs = Dict()
+    
+    time_dependent_variables = Dict(
+        "gen" => Set(["pg", "gen_status", "gen_startup", "gen_shutdown"]),
+        "branch" => Set(["pf", "pt"]),
+        "bus" => Set(["va"])
+    )
+    
+    for (case_label, results_v) in all_sol_data
+        for (re_inj_int, result) in results_v
+            case_re_label = "$(case_label)_$(re_inj_int)"
+            dfs[case_re_label] = Dict()
+
+            if result["results"]["termination_status"] == JuMP.OPTIMAL
+                for comp in ["gen", "bus", "branch"]
+                    dfs[case_re_label]["$(comp)_t"] = Dict()
+                    dfs[case_re_label][comp] = Dict()
+                    
+                    all_vars = Set()
+                    for (_, comp_data) in result["results"]["solution"]["nw"]
+                        if haskey(comp_data, comp)
+                            for (_, details) in comp_data[comp]
+                                union!(all_vars, keys(details))
+                            end
+                        end
+                    end
+
+                    non_time_dependent_vars = setdiff(all_vars, time_dependent_variables[comp])
+
+                    for var in time_dependent_variables[comp]
+                        data = Dict()
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    if !haskey(data, nw)
+                                        data[nw] = Dict()
+                                    end
+                                    data[nw][id] = get(details, var, NaN)
+                                end
+                            end
+                        end
+                        
+                        if isempty(data)
+                            continue
+                        end
+                        
+                        nw_keys = collect(keys(data))
+                        id_keys = collect(keys(data[first(nw_keys)]))
+                        matrix = [get(get(data, nw, Dict()), id, NaN) for nw in nw_keys, id in id_keys]
+                        df = DataFrame(matrix, Symbol.(id_keys))
+                        insertcols!(df, 1, :nw => nw_keys)
+                        sort!(df, :nw, by = x -> parse(Int, string(x)))
+                        dfs[case_re_label]["$(comp)_t"][var] = df
+                    end
+
+                    for var in non_time_dependent_vars
+                        unique_data = Dict()
+                        for (_, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    unique_data[id] = get(details, var, NaN)
+                                end
+                            end
+                        end
+
+                        if isempty(unique_data)
+                            continue
+                        end
+                        
+                        id_keys = sort(collect(keys(unique_data)), by = x -> parse(Int, x))
+                        values_list = [unique_data[id] for id in id_keys]
+                        df = DataFrame(id = id_keys, value = values_list)
+                        dfs[case_re_label][comp][var] = df
+                    end
+
+                end
+            end
+        end
+    end
+
+    return dfs
+end
+
+dfs = create_dataframes(all_sol_data)
+
+
+
+
+
+
+function plot_cost(all_data, plot_type="bar", save_path=".")
+    p = plot(title = "Kostenvergleich", xlabel = " ", ylabel = "Kosten", legend = :outertopright, xrotation = 45)
+    xticks = Int64[]
+    xlabels = String[]
+    i = 1
+
+    sorted_data = sort(collect(all_data), by = x -> parse(Int, split(x[1], '_')[2]))
+
+    reference_costs = Dict()
+
+    for (case_label, case_data) in sorted_data
+        sorted_subcases = sort(collect(case_data), by = x -> parse(Int, x[1]))
+        for (subcase_label, subcase_data) in sorted_subcases
+            if haskey(subcase_data, "results") && haskey(subcase_data["results"], "objective")
+                cost = subcase_data["results"]["objective"]
+                if case_label == "case_1"
+                    reference_costs[subcase_label] = cost
+                end
+                if plot_type == "scatter"
+                    scatter!(p, [i], [cost], label = "$(case_label)_$subcase_label", marker = :circle)
+                elseif plot_type == "bar"
+                    bar!(p, [i], [cost], label = "$(case_label)_$subcase_label")
+                    if haskey(reference_costs, subcase_label)
+                        cost_increase_percentage = ((cost - reference_costs[subcase_label]) / reference_costs[subcase_label]) * 100
+                        annotate!(p, [(i, cost, string(round(cost_increase_percentage, digits=2), "%"))])
+                    
+                    end
+                end
+                push!(xticks, i)
+                push!(xlabels, "$(case_label)_$subcase_label")
+                i += 1
+            else
+                println("Missing 'objective' in 'results' for case '$(case_label)_$subcase_label'.")
+            end
+        end
+    end
+    xticks!(p, xticks, xlabels)
+    display(p)
+    savefig(p, joinpath(save_path, "cost_plot.pdf"))  # Save the plot as a PDF
+end
+plot_cost(all_sol_data, "bar", "C:/Users/Taiseer/Desktop/Master NEE/MASTERARBEIT/LaTex_schriftliche_Ausarbeitung_MA/plot_results")  # or "scatter" for scatter plot
+
+
+
+
+
+function plot_solver_time(all_data, plot_type="bar", save_path=".")
+    p = plot(title = "Vergleich der Lösungszeit", xlabel = " ", ylabel = "Zeit (s)", legend = :outertopright, xrotation = 45)
+    xticks = Int64[]
+    xlabels = String[]
+    i = 1
+
+    sorted_data = sort(collect(all_data), by = x -> parse(Int, split(x[1], '_')[2]))
+
+    reference_times = Dict()
+
+    for (case_label, case_data) in sorted_data
+        sorted_subcases = sort(collect(case_data), by = x -> parse(Int, x[1]))
+        for (subcase_label, subcase_data) in sorted_subcases
+            if haskey(subcase_data, "results") && haskey(subcase_data["results"], "solve_time")
+                solver_time = subcase_data["results"]["solve_time"]
+                if case_label == "case_1"
+                    reference_times[subcase_label] = solver_time
+                end
+                if plot_type == "scatter"
+                    scatter!(p, [i], [solver_time], label = "$(case_label)_$subcase_label", marker = :circle)
+                elseif plot_type == "bar"
+                    bar!(p, [i], [solver_time], label = "$(case_label)_$subcase_label")
+                    if haskey(reference_times, subcase_label)
+                        time_increase_percentage = ((solver_time - reference_times[subcase_label]) / reference_times[subcase_label]) * 100
+                        annotate!(p, [(i, solver_time, string(round(time_increase_percentage, digits=2), "%"))])
+                    end
+                end
+                push!(xticks, i)
+                push!(xlabels, "$(case_label)_$subcase_label")
+                i += 1
+            else
+                println("Missing 'solve_time' in 'results' for case '$(case_label)_$subcase_label'.")
+            end
+        end
+    end
+    xticks!(p, xticks, xlabels)
+    display(p)
+    savefig(p, joinpath(save_path, "solver_time_plot.pdf"))  # Save the plot as a PDF
+end
+plot_solver_time(all_sol_data, "bar", "C:\\Users\\Taiseer\\Desktop\\Master NEE\\MASTERARBEIT\\LaTex_schriftliche_Ausarbeitung_MA\\plot_results")
+
+
+
+function plot_pg_data(dfs, pg_plot_options, save_path=".")
+    cases = get(pg_plot_options, "cases", [])
+    component = get(pg_plot_options, "component", "")
+    variable = get(pg_plot_options, "variable", "")
+    generator_ids = get(pg_plot_options, "generator_ids", [])
+    nw_range = get(pg_plot_options, "nw_range", nothing)
+    plot_type = get(pg_plot_options, "plot_type", :line)
+    plot_name = get(pg_plot_options, "plot_name", "")
+    p = plot() 
+
+    if plot_name == "pg_pro_gen"
+        xlabel = "Laststunden"
+        ylabel = "Eruegerleistung in p.u."
+        title = "Vergleich der Erzeugerleistung"
+        p = plot(title = title, xlabel = xlabel, ylabel = ylabel, legend = :outertopright)
+
+        for case_label in cases
+            df = dfs[case_label][component][variable]
+
+            nw_col = parse.(Int, df[!, :nw])
+            
+            if nw_range !== nothing
+                indices = findall(x -> x in nw_range, nw_col)
+                df = df[indices, :]
+                nw_col = nw_col[indices]
+            end
+
+            if !all(id in names(df) for id in generator_ids)
+                println("One or more generator_ids not found in DataFrame for case $case_label.")
+                continue
+            end
+
+            filtered_df = df[:, generator_ids]
+            for id in generator_ids
+                variable_data = filtered_df[!, id]
+                if isempty(variable_data)
+                    println("No data available for generator ID $id in case $case_label.")
+                    continue
+                end
+
+                if plot_type == :line
+                    plot!(p, nw_col, variable_data, label = "$case_label, $id")
+                elseif plot_type == :scatter
+                    scatter!(p, nw_col, variable_data, label = "$case_label, $id")
+                else
+                    println("Invalid plot type '$plot_type'.")
+                end
+            end
+        end
+    elseif plot_name == "pg_pro_carrier"
+        xlabel = ""
+        ylabel = "Erzeugerleistung in p.u."
+        title = "Vergleich der Erzeugerleistung"
+        p = plot(title = title, xlabel = xlabel, ylabel = ylabel, legend = false)
+    
+        carrier_labels = Dict("0" => "CGT", "1" => "CGT", "2" => "BM", "3" => "WE", "4" => "WE", "5" => "PV", "6" => "HD", "7" => "PHS", "8" => "PHS")
+        
+        all_carriers = sort(unique(values(carrier_labels)))
+        carrier_colors = Dict(
+            "CGT" => RGB(0.000, 0.502, 0.502),  # Dunkles Türkis
+            "BM"  => RGB(0.690, 0.188, 0.376),  # Dunkles Rosa
+            "WE"  => RGB(0.416, 0.353, 0.804),  # Dunkles Indigo
+            "PV"  => RGB(0.855, 0.647, 0.125),  # Goldgelb
+            "HD"  => RGB(0.988, 0.894, 0.423),  # Sonnengelb
+            "PHS" => RGB(0.627, 0.322, 0.176)   # Siena
+        )
+        
+        case_offsets = Dict()
+    
+        for (case_index, case_label) in enumerate(cases)
+            case_offset = case_index * length(all_carriers) * 1.3
+            case_offsets[case_label] = case_offset
+    
+            df_gen = dfs[case_label][component][variable]
+            df_carrier = dfs[case_label]["gen"]["carrier"]
+            df_carrier_map = Dict(row.id => carrier_labels[string(row.value)] for row in eachrow(df_carrier))
+    
+            nw_col = parse.(Int, df_gen[!, :nw])
+            indices = findall(x -> x in nw_range, nw_col)
+    
+            carrier_pg = Dict{String, Float64}()
+            for gen_id_str in names(df_gen)
+                if gen_id_str == "nw"
+                    continue
+                end
+                gen_id = parse(Int, gen_id_str)
+                if haskey(df_carrier_map, string(gen_id))
+                    carrier_id = df_carrier_map[string(gen_id)]
+                    summed_pg = sum(df_gen[indices, gen_id_str])
+                    carrier_pg[carrier_id] = get(carrier_pg, carrier_id, 0.0) + summed_pg
+                end
+            end
+    
+            for (carrier_name, pg_value) in carrier_pg
+                carrier_index = findfirst(x -> x == carrier_name, all_carriers)
+                pos = case_offsets[case_label] + carrier_index
+                bar!(p, [pos], [pg_value], width=0.8, color=carrier_colors[carrier_name], label="")
+                annotate!(p, [(pos, pg_value + 0.5, text(carrier_name, :bottom, 10))])            
+            end
+        end
+    
+        xticks = [case_offset + (length(all_carriers) * 0.5) for case_offset in values(case_offsets)]
+        xticks!(p, xticks, cases)
+    
+    end    
+    display(p)
+    save_path = joinpath(save_path, "$plot_name.pdf")
+    savefig(p, save_path) 
+end
+
+
+pg_plot_options = Dict(
+    "cases" => ["case_1_35", "case_1_70"],
+    "component" => "gen_t",
+    "variable" => "pg",
+    "generator_ids" => [],
+    "plot_name" => "pg_pro_carrier",  # "pg_pro_gen" or "pg_pro_carrier"
+    "plot_type" => :bar, # line or scatter or bar
+    "nw_range" => 0:47
+)
+
+plot_pg_data(dfs, pg_plot_options, "C:/Users/Taiseer/Desktop/Master NEE/MASTERARBEIT/LaTex_schriftliche_Ausarbeitung_MA/plot_results")
+
+
+
+function plot_power_flows(pf_options, dfs)
+    case_label = pf_options["case"]
+    nw = pf_options["nw"]
+    num_edges = size(dfs[case_label]["branch"]["f_bus"], 1)
+    num_buses = size(dfs[case_label]["bus"]["bus_i"], 1)
+
+    bus_data = dfs[case_label]["bus"]["bus_i"]
+    branch_data = dfs[case_label]["branch"]
+    pf = dfs[case_label]["branch_t"]["pf"]
+    pt = dfs[case_label]["branch_t"]["pt"]
+    rate_a = branch_data["rate_a"]
+
+    g = Graphs.SimpleGraph(num_buses)
+
+    for i in 1:num_edges
+        f_bus = branch_data["f_bus"][i, :value]
+        t_bus = branch_data["t_bus"][i, :value]
+        Graphs.add_edge!(g, f_bus, t_bus)
+    end
+
+    edge_colors = Vector{RGB}(undef, num_edges)
+    edge_labels = Vector{String}(undef, num_edges)
+
+    for i in 1:num_edges
+        pf_value = pf[nw, i + 1]
+        rate_value = rate_a[i, :value]
+
+        utilization = abs(pf_value) / rate_value
+        color = utilization > 0.8 ? RGB(1, 0, 0) : utilization > 0.5 ? RGB(1, 1, 0) : RGB(0, 1, 0)
+
+        edge_colors[i] = color
+        edge_labels[i] = @sprintf("%.2f", pf_value)
+    end
+
+    offset = 0.1
+    Random.seed!(35)
+    layout = (x) -> spring_layout(g)
+    graph_plot = gplot(g,
+                       layout=layout,
+                       edgelabel=edge_labels,
+                       edgestrokec=edge_colors,
+                       nodelabel=bus_data[:, :value],
+                       nodefillc=colorant"purple",
+                       edgelabeldistx=offset,
+                       edgelabeldisty=offset)
+
+    display(graph_plot)
+    save_path = "C:/Users/Taiseer/Desktop/Master NEE/MASTERARBEIT/LaTex_schriftliche_Ausarbeitung_MA/plot_results"
+    draw(PDF(joinpath(save_path, "pf_bus_$(num_buses)_$(case_label)_$(nw).pdf")), graph_plot)
+
+end
+
+pf_options = Dict(
+    "case" => "case_1_35",
+    "nw" => 20
+)
+
+plot_power_flows(pf_options, dfs)
+
+
+
+
+#=
+function create_dataframes(all_sol_data::Dict{Any, Any})
+    dfs = Dict()
+    
+    # Define time-dependent variables for each component
+    time_dependent_variables = Dict(
+        "gen" => ["pg", "gen_status", "gen_startup", "gen_shutdown"],
+        "branch" => ["pf", "pt"],
+        "bus" => ["va"]
+    )
+    
+    for (case_label, results_v) in all_sol_data
+        for (re_inj_int, result) in results_v
+            case_re_label = "$(case_label)_$(re_inj_int)"
+            dfs[case_re_label] = Dict()
+
+            if result["results"]["termination_status"] == JuMP.OPTIMAL
+
+                for comp in ["gen", "bus", "branch"]
+                    dfs[case_re_label]["$(comp)_t"] = Dict()
+                    dfs[case_re_label][comp] = Dict()
+                    
+                    all_vars = Set()
+                    for (_, comp_data) in result["results"]["solution"]["nw"]
+                        if haskey(comp_data, comp)
+                            for (_, details) in comp_data[comp]
+                                all_vars = union(all_vars, Set(keys(details)))
+                            end
+                        end
+                    end
+
+                    non_time_dependent_vars = setdiff(all_vars, time_dependent_variables[comp])
+
+                    for var in time_dependent_variables[comp]
+                        data = Dict()
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    if !haskey(data, nw)
+                                        data[nw] = Dict()
+                                    end
+                                    data[nw][id] = get(details, var, NaN)
+                                end
+                            end
+                        end
+                        
+                        if isempty(data)
+                            continue
+                        end
+                        
+                        # Erstellen einer Liste von eindeutigen nw-Schlüsseln
+                        nw_keys = sort(parse.(Int, collect(keys(data))))
+
+                        # Erstellen einer Liste von eindeutigen id-Schlüsseln
+                        id_keys = Set{Int}()
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                id_keys = union(id_keys, parse.(Int, collect(keys(comp_data[comp]))))
+                            end
+                        end
+                        id_keys = sort(collect(id_keys))
+
+                        # Erstellen der Matrix aus den Daten
+                        matrix = [get(get(data, string(nw), Dict()), string(id), NaN) for nw in nw_keys, id in id_keys]
+
+                        # Erstellen des DataFrames
+                        df = DataFrame(matrix, Symbol.(id_keys))
+                        insertcols!(df, 1, :nw => nw_keys)
+
+                        dfs[case_re_label]["$(comp)_t"][var] = df
+                    end
+
+                    # Non-time-dependent variables processing
+                    for var in non_time_dependent_vars
+                        simple_data = []
+                        for (nw, comp_data) in result["results"]["solution"]["nw"]
+                            if haskey(comp_data, comp)
+                                for (id, details) in comp_data[comp]
+                                    push!(simple_data, (nw=nw, id=id, value=get(details, var, NaN)))
+                                end
+                            end
+                        end
+
+                        if isempty(simple_data)
+                            continue
+                        end
+                        
+                        df = DataFrame(simple_data, [:nw, :id, Symbol(var)])
+                        sort!(df, :nw, by = x -> parse(Int, string(x)))
+                        dfs[case_re_label][comp][var] = df
+                    end
+                end
+            end
+        end
+    end
+
+    return dfs
+end
+
+=#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#=
 function create_dataframes(all_sol_data::Dict{Any, Any})
     dfs = Dict()
 
-    zeitabhaengige_variablen = Set(["pg", "pf", "pt", "gen_status", "gen_startup", "gen_shutdown"])
+    time_dependent_variables = Set(["pg", "pf", "pt", "gen_status", "gen_startup", "gen_shutdown"])
 
     for (case_label, results_v) in all_sol_data
         for (re_inj_int, result) in results_v
@@ -134,9 +626,9 @@ function create_dataframes(all_sol_data::Dict{Any, Any})
                             end
                         end
                     end
-                    nicht_zeitabhaengige_vars = setdiff(alle_vars, zeitabhaengige_variablen)
+                    non_time_dependent_vars = setdiff(alle_vars, time_dependent_variables)
 
-                    for var in zeitabhaengige_variablen
+                    for var in time_dependent_variables
                         data = Dict()
                         for (nw, comp_data) in result["results"]["solution"]["nw"]
                             if haskey(comp_data, comp)
@@ -159,7 +651,7 @@ function create_dataframes(all_sol_data::Dict{Any, Any})
                         dfs[case_re_label]["$(comp)_$(var)"] = df
                     end
 
-                    for var in nicht_zeitabhaengige_vars
+                    for var in non_time_dependent_vars
                         simple_data = []
                         for (nw, comp_data) in result["results"]["solution"]["nw"]
                             if haskey(comp_data, comp)
@@ -186,18 +678,6 @@ dfs = create_dataframes(all_sol_data)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-#=
 function create_dataframes(all_sol_data::Dict{Any, Any})
     # Dictionary, das alle DataFrames enthält
     dfs = Dict()
