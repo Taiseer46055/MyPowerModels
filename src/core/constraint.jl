@@ -59,8 +59,9 @@ function constraint_limit_phs_injection(pm::AbstractPowerModel, total_phs_pg_pum
     pm.ext[:total_phs_pg_turb_expr] = total_phs_pg_turb_expr
     pm.data["total_phs_pg_pump_expr"] = pm.ext[:total_phs_pg_pump_expr]
     pm.data["total_phs_pg_turb_expr"] = pm.ext[:total_phs_pg_turb_expr]
-    JuMP.@constraint(pm.model, total_phs_pg_pump_expr <= 0.28 * total_load)
-    JuMP.@constraint(pm.model, total_phs_pg_turb_expr == 0.75 * total_phs_pg_pump_expr)
+    JuMP.@constraint(pm.model, (-total_phs_pg_pump_expr) <= 0.028 * total_load)
+    JuMP.@constraint(pm.model, total_phs_pg_turb_expr == -0.75 * total_phs_pg_pump_expr)
+
 end
 
 

@@ -1,0 +1,16 @@
+tech,index,agg_tech
+CCGT,0,Gas
+OCGT,1,Gas
+offwind,2,Wind
+oil,3,Ohter Conventional
+onwind,4,Ohter Conventional
+ror,5,Hydro
+solar,6,PV
+lignite,7,Ohter Conventional
+biomass,8,Biomass
+coal,9,Ohter Conventional
+nuclear,10,Nuclear
+geothermal,11,Other Conventional
+hydro,12,Hydro
+PHS_turb,13,PHS T
+PHS_pump,14,PHS P

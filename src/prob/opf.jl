@@ -447,7 +447,8 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             re_options = options["re"]
             re_x = re_options["precentage_re_inj"]
             alpha = f_options["alpha_factor"]
-            calc_delta_P = f_options["calc_delta_P"] 
+            calc_delta_P = f_options["calc_delta_P"]
+
 
             if isa(calc_delta_P, Array) && length(calc_delta_P) == 2
                 gen_id = calc_delta_P[1]
@@ -463,7 +464,6 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
     
                 # gen_data[max_product_gen]["pmax"] = max(0, gen_data[max_product_gen]["pmax"]*(1-alpha))
                 # gen_data[max_product_gen]["pmin"] = max(0, gen_data[max_product_gen]["pmin"]*(1-alpha))
-    
             else
                 error("Invalid value for calc_delta_P. It must be either an array of number or 'internal'.")
             end
@@ -472,6 +472,14 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             f0 = 50.0
 
             E_I_min = (delta_P * f0) / (2 * rocof)
+
+            for bus_id in ids(pm, n, :bus)
+                load_data = ref(pm, n, :load)
+                if haskey(load_data, bus_id)
+                    bus_pd = load_data[bus_id]["pd"]
+                    sol(pm, n, :bus, bus_id)[:pd] = bus_pd
+                end
+            end
     
             variable_bus_voltage(pm, nw=n)
             variable_gen_power_real_on_off_with_gen_exp(pm, nw=n)
@@ -524,6 +532,7 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
             end
             for i in ids(pm, :branch, nw=n)
                 constraint_ohms_yt_from(pm, i, nw=n)
+                # constraint_ohms_yt_from_scaled(pm, i, nw=n)
                 constraint_ohms_yt_to(pm, i, nw=n)
         
                 constraint_voltage_angle_difference(pm, i, nw=n)
@@ -593,8 +602,10 @@ function build_mn_opf_inertia_gen_exp(model_type::Type, options::Dict{String, Di
         # JuMP.@constraint(pm.model, Inertia_slack, E_I_sM .<= 0)
         # JuMP.@constraint(pm.model, Inertia_slack[1:length(nws(pm)), 1:length(ids(pm, :bus))], E_I_sM .<= 0)
         re_options = options["re"]
-        constraint_min_renewable_injection(pm, re_options)
-        constraint_limit_phs_injection(pm)
+        carrier_options = options["carrier"]
+        carrier_indices = carrier_options["carrier_indices"]
+        constraint_min_renewable_injection(pm, re_options, carrier_indices)
+        constraint_limit_phs_injection(pm, carrier_indices)
         objective_with_generator_expansion_and_inertia_cost(pm)
 
     end

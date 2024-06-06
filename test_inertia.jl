@@ -12,12 +12,20 @@ using JLD2
 using GLPK
 using PowerPlots
 using DataFrames
+using CSV
 
-bus_system = "10"
+
+bus_system = "37"
 dir = ".\\test\\data\\matpower\\multi_nw\\bus_$bus_system"
-case_name = "mpc_multinetwork_$bus_system" 
+case_name = "pypsa-eur_multinetwork_$bus_system" 
 start_day = 000  
 end_day = 014
+
+carriers_file = ".\\test\\data\\matpower\\multi_nw\\bus_$bus_system\\pypsa-eur_multinetwork_$bus_system\\carrier_indices.csv"
+carriers_df = CSV.read(carriers_file, DataFrame, header =0 ; delim = ',' )
+carriers_dict = Dict(zip(carriers_df[:,1], carriers_df[:,2]))
+
+
 
 # Define the options for the optimization
 relax_integrality = false
@@ -53,18 +61,23 @@ options = Dict(
     ),
     "re" => Dict(
         "precentage_re_inj" => 0.5,
+    ),
+    "carrier" => Dict(
+        "carrier_indices" => carriers_dict
+    
     )
+
 )
 
 configurations = [
     ("case_1", Dict("inertia_constraint" => "false", "system" => "false", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
-    # ("case_2", Dict("inertia_constraint" => "true", "system" => "true", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
-    # ("case_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
-    # ("case_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
-    # ("case_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.25)),
-    # ("case_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.50)),
-    # ("case_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.75)),
-    # ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
+    ("case_2", Dict("inertia_constraint" => "true", "system" => "true", "disturbance" => "small", "weighted_area" => "none", "area" => "false", "bus" => "false")),
+    ("case_3", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "load", "area" => "false", "bus" => "false")),
+    ("case_4", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "small", "weighted_area" => "equal", "area" => "false", "bus" => "false")),
+    ("case_5", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.25)),
+    ("case_6", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.50)),
+    ("case_7", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 0.75)),
+    ("case_8", Dict("inertia_constraint" => "true", "system" => "false", "disturbance" => "large", "weighted_area" => "none", "area" => "true", "bus" => "false", "beta_factor" => 1.0)),
 ]
 
 # minlp_solver = JuMP.optimizer_with_attributes(Juniper.Optimizer, "nl_solver"=>JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol"=>1e-6, "print_level"=>2), "log_levels"=>[:all])
@@ -128,7 +141,165 @@ function load_multinetwork_data(case_name, dir, start_day, end_day)
 
     return mn_data
 end
-mn_data = load_multinetwork_data(case_name, dir, start_day, end_day);
+
+
+function add_missing_values_to_sol_data(results_v::Dict{String, Any}, mn_data_main::Dict{String, Any})
+
+    if  results_v["results"]["termination_status"] == JuMP.OPTIMAL
+        for (nw, data) in results_v["results"]["solution"]["nw"]
+            # Get gen_data and bus_data from mn_data_main
+            gen_data_mn = mn_data_main["nw"][nw]["gen"]
+            bus_data_mn = mn_data_main["nw"][nw]["bus"]
+            branch_data_mn = mn_data_main["nw"][nw]["branch"]
+
+            # Get gen_data and bus_data from solution
+            gen_data_solution = data["gen"]
+            bus_data_solution = data["bus"]
+            branch_data_solution = data["branch"]
+
+            # Merge gen_data
+            for (gen_id, gen) in gen_data_solution
+                if haskey(gen_data_mn, gen_id)
+                    gen_data_solution[gen_id] = merge((x, y) -> ismissing(x) ? y : x, gen, gen_data_mn[gen_id])
+                else
+                    println("No matching gen_id found in mn_data_main for gen_id: $gen_id")
+                end
+            end
+
+            # Merge bus_data
+            for (bus_id, bus) in bus_data_solution
+                if haskey(bus_data_mn, bus_id)
+                    bus_data_solution[bus_id] = merge((x, y) -> ismissing(x) ? y : x, bus, bus_data_mn[bus_id])
+                else
+                    println("No matching bus_id found in mn_data_main for bus_id: $bus_id")
+                end
+            end
+
+            # Merge branch_data
+            for (branch_id, branch) in branch_data_solution
+                if haskey(branch_data_mn, branch_id)
+                    branch_data_solution[branch_id] = merge((x, y) -> ismissing(x) ? y : x, branch, branch_data_mn[branch_id])
+                else
+                    println("No matching branch_id found in mn_data_main for branch_id: $branch_id")
+                end
+            end
+
+            # Update solution data with the merged data
+            data["gen"] = gen_data_solution
+            data["bus"] = bus_data_solution
+            data["branch"] = branch_data_solution
+
+        end
+    else
+        println("No optimal solution found for case_label: $case_label, re_inj: $re_inj_int")
+    end
+    return results_v;
+end
+
+
+
+
+function create_and_save_dataframes(all_sol_data::Dict{String, Any}, re_inj_int::Int64, case_label::String, relax_integrality::Bool)
+    base_path = "results\\results_bus_$(bus_system)\\relax_$(relax_integrality)"
+    time_dependent_variables = Dict(
+        "gen" => Set(["pg", "gen_status", "gen_startup", "gen_shutdown", "pg_cost", "startup_cost", "shutdown_cost"]),
+        "branch" => Set(["pf", "pt"]),
+        "bus" => Set(["va", "pd", "E_I_area", "delta_p_area", "E_I_min_area"]),
+        "dcline" => Set(["pfl", "ptl", "pf", "pt", "p_dc_cost"]),
+    )
+    all_dfs = Dict()
+
+    if all_sol_data["results"]["termination_status"] == JuMP.OPTIMAL
+        results_without_solution = Dict(filter(pair -> pair.first != "solution", all_sol_data["results"]))
+        df_results = DataFrame(results_without_solution)
+        all_dfs["general_var"] = df_results
+
+        for comp in ["gen", "bus", "branch", "dcline"]
+            dynamic_vars = Dict()
+            static_vars = Dict()
+
+            all_vars = Set()
+            for (_, comp_data) in all_sol_data["results"]["solution"]["nw"]
+                if haskey(comp_data, comp)
+                    for (_, details) in comp_data[comp]
+                        union!(all_vars, keys(details))
+                    end
+                end
+            end
+
+            non_time_dependent_vars = setdiff(all_vars, time_dependent_variables[comp])
+
+            for var in time_dependent_variables[comp]
+                data = Dict()
+                for (nw, comp_data) in all_sol_data["results"]["solution"]["nw"]
+                    if haskey(comp_data, comp)
+                        for (id, details) in comp_data[comp]
+                            if !haskey(data, nw)
+                                data[nw] = Dict()
+                            end
+                            if haskey(details, var)
+                                data[nw][id] = get(details, var, NaN)
+                            else
+                                data[nw][id] = NaN
+                            end
+                        end
+                    end
+                end
+
+                if isempty(data)
+                    continue
+                end
+
+                nw_keys = collect(keys(data))
+                id_keys = collect(keys(data[first(nw_keys)]))
+                matrix = [get(get(data, nw, Dict()), id, NaN) for nw in nw_keys, id in id_keys]
+                df = DataFrame(matrix, Symbol.(id_keys))
+                insertcols!(df, 1, :nw => nw_keys)
+                sort!(df, :nw)
+                dynamic_vars[var] = df
+            end
+
+            for var in non_time_dependent_vars
+                unique_data = Dict()
+                for (_, comp_data) in all_sol_data["results"]["solution"]["nw"]
+                    if haskey(comp_data, comp)
+                        for (id, details) in comp_data[comp]
+                            unique_data[id] = get(details, var, NaN)
+                        end
+                    end
+                end
+
+                if isempty(unique_data)
+                    continue
+                end
+
+                id_keys = sort(collect(keys(unique_data)))
+                values_list = [unique_data[id] for id in id_keys]
+                df = DataFrame(id = id_keys, value = values_list)
+                static_vars[var] = df
+            end
+
+            all_dfs["$(comp)_t"] = dynamic_vars
+            all_dfs["$comp"] = static_vars
+        end
+
+        # Extrahieren und Speichern von 'weight' für jedes 'nw'
+        weight_data = Dict()
+        for (nw, nw_data) in all_sol_data["results"]["solution"]["nw"]
+            weight_data[nw] = get(nw_data, "weight", NaN)
+        end
+        
+        nw_keys = sort(collect(keys(weight_data)))
+        weights = [weight_data[nw] for nw in nw_keys]
+        df_weight = DataFrame(nw = nw_keys, weight = weights)
+        all_dfs["weight"] = df_weight
+        # Speichern aller DataFrames in einer Datei
+        JLD2.save("$(base_path)\\$(case_label)_$(re_inj_int).jld2", "results", all_dfs)
+    end
+end
+
+
+
 
 function main()
     mn_data_main = load_multinetwork_data(case_name, dir, start_day, end_day)
@@ -138,7 +309,7 @@ function main()
     #JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\mn_data_main.jld2", "mn_data_main", mn_data_main)
 
     all_results = Dict()
-    range_re_inj = 0.35:0.35:0.7
+    range_re_inj = 0.50:0.10:0.60
 
     for (j, (case_label, case_options)) in enumerate(configurations)
 
@@ -169,7 +340,10 @@ function main()
                     "error" => "None",
                 )
 
-                JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\$(case_label)_$re_inj_int.jld2", "results", results_v)
+                all_sol_data = add_missing_values_to_sol_data(results_v, mn_data_main);
+                create_and_save_dataframes(all_sol_data, re_inj_int, case_label, relax_integrality)
+
+                # JLD2.save("results\\results_bus_$bus_system\\relax_$(relax_integrality)\\$(case_label)_$re_inj_int.jld2", "results", results_v)
             catch e
                 println("Error processing case_$(case_label)_re_inj_$(precentage_re_inj): $e")
                 results_v = Dict(
@@ -187,9 +361,21 @@ function main()
 
     println("All configurations have been processed.")
     return all_results
+
 end
 
+
 all_results = main()
+
+
+
+
+
+
+
+
+
+
 
 
 # function get_max_load_per_bus(mn_data)

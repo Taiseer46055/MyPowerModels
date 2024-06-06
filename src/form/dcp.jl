@@ -126,30 +126,22 @@ function constraint_system_inertia(pm::DCPPowerModel, E_I_min::Float64 , f_optio
             areas = unique([bus_data[j]["area"] for j in keys(bus_data)])
             for a in areas
                 
-                # Identify generators and loads within each area
                 gens_in_area = [i for i in eachindex(gen_data) if bus_data[gen_data[i]["gen_bus"]]["area"] == a]
                 buses_in_area = [i for i in keys(bus_data) if bus_data[i]["area"] == a]
                 
-                # Calculate load and potential delta_p for each area
                 P_load_area[a] = sum(load_data[i]["pd"] for i in eachindex(load_data) if load_data[i]["load_bus"] in buses_in_area; init=0)
-                # Debug fürs testen ######
                 if P_load_area[a] < 0
                     P_load_area[a] = 0
                 end
-                ############################
                 P_power_area_exp[a] = JuMP.@expression(pm.model, sum(pg[i] for i in gens_in_area))
                 delta_p_area[a] =  JuMP.@expression(pm.model, P_power_area_exp[a] - P_load_area[a])
                 E_I_min_area[a] = ((delta_p_area[a] * f0 * beta) / (2 * rocof))
                 E_I_area[a] = sum(gen_data[i]["H"] * maximum([abs(gen_data[i]["pmin"]),abs(gen_data[i]["pmax"])]) * z[i] for i in gens_in_area; init=0) + sum(E_I_s[i] for i in eachindex(buses_in_area); init=0)
-
-                # report the delta_p, E_I_min_area and E_I_area for each area
             
                 sol(pm, n, :bus, a)[:delta_p_area] = delta_p_area[a]
                 sol(pm, n, :bus, a)[:E_I_min_area] = E_I_min_area[a]
                 sol(pm, n, :bus, a)[:E_I_area] = E_I_area[a]
                 
-
-                # Apply area-specific inertia constraints
                 JuMP.@constraint(pm.model,  E_I_area[a] >= E_I_min_area[a])
                 JuMP.@constraint(pm.model,  E_I_area[a] >= (-1) * E_I_min_area[a])
 
@@ -301,6 +293,14 @@ function constriant_reactive_power(pm::DCPPowerModel,v_options::Dict{String, Str
 end
 
 
+function constraint_ohms_yt_from_scaled(pm::AbstractDCPModel, n::Int, f_bus, t_bus, f_idx, t_idx, g, b, g_fr, b_fr, tr, ti, tm)
+    p_fr  = var(pm, n,  :p, f_idx)
+    va_fr = var(pm, n, :va, f_bus)
+    va_to = var(pm, n, :va, t_bus)
+
+    JuMP.@constraint(pm.model, p_fr == -b * (va_fr - va_to))
+    # omit reactive constraint
+end
 
 ################################### End Taiseer Code #########################
 

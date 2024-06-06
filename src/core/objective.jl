@@ -72,7 +72,6 @@ end
 
 function expression_investment_cost(pm::AbstractPowerModel; report::Bool=true)
     investment_cost = Dict()
-    
     for (n, nw_ref) in nws(pm)
         gen_data = ref(pm, n, :gen)
         
@@ -81,7 +80,6 @@ function expression_investment_cost(pm::AbstractPowerModel; report::Bool=true)
         end
         report && sol_component_value(pm, n, :gen, :investment_cost, ids(pm, n, :gen), investment_cost)
     end
-
 end
 
 function expression_operating_cost(pm::AbstractPowerModel; report::Bool=true)
@@ -93,7 +91,7 @@ function expression_operating_cost(pm::AbstractPowerModel; report::Bool=true)
         for (i, gen) in gen_data
             operational_cost[i] = ref(pm, n, :gen, i)["startup"] * var(pm, n, :su)[i] + 
             ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
-            var(pm, n,   :pg_cost, i)
+            var(pm, n, :pg_cost, i)
         end
         report && sol_component_value(pm, n, :gen, :operational_cost, ids(pm, n, :gen), operational_cost)
     end
@@ -115,24 +113,15 @@ function objective_with_generator_expansion_and_inertia_cost(pm::AbstractPowerMo
             ref(pm, n, :gen, i)["shutdown"] * var(pm, n, :sd)[i] +
             var(pm, n,   :pg_cost, i) for (i, gen) in nw_ref[:gen]) 
             # + sum(var(pm, n, :p_dc_cost, i) for (i,dcline) in nw_ref[:dcline]; init=0)
-        for (n, nw_ref) in nws(pm)
-        )
+        for (n, nw_ref) in nws(pm))
 
     investment_cost = sum(
         sum((var(pm, n, :nE)[i] - ref(pm, n, :gen, i)["n0"]) * ref(pm, n, :gen, i)["investment"] 
-        for (i, gen) in nw_ref[:gen]) for (n, nw_ref) in nws(pm)
-    )
+        for (i, gen) in nw_ref[:gen]) for (n, nw_ref) in nws(pm))
     
     total_cost =  investment_cost + operational_cost
     println("Total Cost: ", total_cost)
     return JuMP.@objective(pm.model, Min, total_cost)
-end
-
-function objective_test(pm::AbstractPowerModel; kwargs...)
-
-    total_cost = 0.0
-    return JuMP.@objective(pm.model, Min, total_cost)
-
 end
 
 ################################### End Taiseer Code #########################

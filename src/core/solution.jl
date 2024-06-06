@@ -9,6 +9,8 @@ function _IM.solution_preprocessor(pm::AbstractPowerModel, solution::Dict; relax
     end
     for (nw_id, nw_ref) in nws(pm)
         solution["it"][pm_it_name]["nw"]["$(nw_id)"]["baseMVA"] = nw_ref[:baseMVA]
+        solution["it"][pm_it_name]["nw"]["$(nw_id)"]["weight"] = Dict()
+        solution["it"][pm_it_name]["nw"]["$(nw_id)"]["weight"] = nw_ref[:weight]
     end
 end
 
