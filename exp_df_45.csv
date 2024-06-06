@@ -1,0 +1,254 @@
+RE,constraint,gen_bus,carrier_names,pExp_sum
+45%,Unit Commitment,33,offwind,2.295
+45%,Unit Commitment,24,offwind,1.819
+45%,Unit Commitment,14,offwind,0.068
+45%,Unit Commitment,18,solar,4.62
+45%,Unit Commitment,4,offwind,5.355
+45%,Unit Commitment,22,solar,53.396
+45%,Unit Commitment,29,offwind,9.299
+45%,Unit Commitment,10,offwind,0.187
+45%,Unit Commitment,8,offwind,16.847
+45%,Unit Commitment,31,offwind,11.543
+45%,Unit Commitment,13,solar,0.504
+45%,Unit Commitment,17,offwind,1.326
+45%,Unit Commitment,23,OCGT,0.224
+45%,Unit Commitment,16,offwind,12.92
+45%,Unit Commitment,23,solar,3.276
+45%,Unit Commitment,12,solar,22.176
+45%,System Inertia,33,offwind,2.295
+45%,System Inertia,24,offwind,1.836
+45%,System Inertia,14,offwind,0.034
+45%,System Inertia,18,solar,4.62
+45%,System Inertia,4,offwind,5.355
+45%,System Inertia,22,solar,53.396
+45%,System Inertia,29,offwind,9.299
+45%,System Inertia,10,offwind,0.187
+45%,System Inertia,8,offwind,16.847
+45%,System Inertia,31,offwind,11.526
+45%,System Inertia,13,solar,0.504
+45%,System Inertia,11,CCGT,0.224
+45%,System Inertia,17,offwind,1.343
+45%,System Inertia,23,OCGT,0.224
+45%,System Inertia,16,offwind,12.886
+45%,System Inertia,23,solar,3.276
+45%,System Inertia,12,solar,22.176
+45%,SD Weighted Load,33,offwind,2.261
+45%,SD Weighted Load,24,offwind,1.802
+45%,SD Weighted Load,14,offwind,0.034
+45%,SD Weighted Load,4,OCGT,0.224
+45%,SD Weighted Load,18,solar,4.48
+45%,SD Weighted Load,4,offwind,5.389
+45%,SD Weighted Load,22,solar,53.424
+45%,SD Weighted Load,29,offwind,9.248
+45%,SD Weighted Load,10,offwind,0.204
+45%,SD Weighted Load,8,offwind,16.932
+45%,SD Weighted Load,31,offwind,11.509
+45%,SD Weighted Load,28,OCGT,0.224
+45%,SD Weighted Load,13,solar,0.532
+45%,SD Weighted Load,17,offwind,1.326
+45%,SD Weighted Load,23,OCGT,0.224
+45%,SD Weighted Load,16,offwind,12.903
+45%,SD Weighted Load,23,solar,3.276
+45%,SD Weighted Load,12,solar,22.204
+45%,SD Weighted Load,11,OCGT,0.224
+45%,Region Islanding 50%,33,offwind,1.241
+45%,Region Islanding 50%,4,solar,2.352
+45%,Region Islanding 50%,21,offwind,0.833
+45%,Region Islanding 50%,26,offwind,0.51
+45%,Region Islanding 50%,24,solar,0.28
+45%,Region Islanding 50%,35,offwind,5.933
+45%,Region Islanding 50%,24,offwind,0.952
+45%,Region Islanding 50%,2,solar,5.124
+45%,Region Islanding 50%,18,offwind,1.037
+45%,Region Islanding 50%,14,offwind,4.845
+45%,Region Islanding 50%,4,OCGT,1.568
+45%,Region Islanding 50%,18,solar,2.632
+45%,Region Islanding 50%,4,offwind,4.08
+45%,Region Islanding 50%,20,OCGT,0.224
+45%,Region Islanding 50%,25,solar,1.288
+45%,Region Islanding 50%,5,offwind,0.51
+45%,Region Islanding 50%,11,solar,0.728
+45%,Region Islanding 50%,32,solar,11.088
+45%,Region Islanding 50%,28,CCGT,0.896
+45%,Region Islanding 50%,22,solar,58.268
+45%,Region Islanding 50%,29,offwind,4.811
+45%,Region Islanding 50%,15,solar,10.892
+45%,Region Islanding 50%,10,offwind,0.476
+45%,Region Islanding 50%,8,offwind,17.918
+45%,Region Islanding 50%,31,offwind,9.452
+45%,Region Islanding 50%,28,OCGT,0.224
+45%,Region Islanding 50%,13,solar,1.036
+45%,Region Islanding 50%,11,CCGT,0.448
+45%,Region Islanding 50%,34,OCGT,1.568
+45%,Region Islanding 50%,10,OCGT,0.448
+45%,Region Islanding 50%,5,solar,2.016
+45%,Region Islanding 50%,23,OCGT,0.896
+45%,Region Islanding 50%,16,offwind,12.172
+45%,Region Islanding 50%,23,solar,2.1
+45%,Region Islanding 50%,11,offwind,0.731
+45%,Region Islanding 50%,12,solar,29.288
+45%,Region Islanding 50%,10,solar,0.84
+45%,Region Islanding 50%,28,solar,1.456
+45%,Region Islanding 50%,22,offwind,0.034
+45%,Region Islanding 50%,11,OCGT,0.224
+45%,Region Islanding 50%,20,solar,5.208
+55%,Unit Commitment,33,offwind,5.236
+55%,Unit Commitment,17,onwind,2.166
+55%,Unit Commitment,24,offwind,0.68
+55%,Unit Commitment,23,onwind,2.09
+55%,Unit Commitment,4,offwind,5.576
+55%,Unit Commitment,13,onwind,0.266
+55%,Unit Commitment,29,offwind,13.6
+55%,Unit Commitment,10,offwind,0.816
+55%,Unit Commitment,8,offwind,25.772
+55%,Unit Commitment,31,offwind,17.136
+55%,Unit Commitment,13,solar,0.224
+55%,Unit Commitment,16,offwind,5.151
+55%,Unit Commitment,14,solar,0.784
+55%,Unit Commitment,22,offwind,7.514
+45%,Region Islanding 75%,15,OCGT,2.464
+45%,Region Islanding 75%,33,offwind,0.986
+45%,Region Islanding 75%,4,solar,3.64
+45%,Region Islanding 75%,21,offwind,0.969
+45%,Region Islanding 75%,26,offwind,0.493
+45%,Region Islanding 75%,24,solar,0.56
+45%,Region Islanding 75%,35,offwind,4.692
+45%,Region Islanding 75%,24,offwind,0.986
+45%,Region Islanding 75%,2,solar,4.116
+45%,Region Islanding 75%,18,offwind,1.258
+45%,Region Islanding 75%,14,offwind,5.423
+45%,Region Islanding 75%,4,OCGT,2.464
+45%,Region Islanding 75%,25,onwind,0.038
+45%,Region Islanding 75%,18,solar,1.204
+45%,Region Islanding 75%,4,offwind,3.774
+45%,Region Islanding 75%,20,OCGT,0.672
+45%,Region Islanding 75%,25,solar,1.148
+45%,Region Islanding 75%,5,offwind,0.136
+45%,Region Islanding 75%,11,solar,0.756
+45%,Region Islanding 75%,32,solar,11.228
+45%,Region Islanding 75%,28,CCGT,0.896
+45%,Region Islanding 75%,22,solar,54.572
+45%,Region Islanding 75%,29,offwind,4.845
+45%,Region Islanding 75%,15,solar,15.82
+45%,Region Islanding 75%,10,offwind,0.578
+45%,Region Islanding 75%,37,solar,0.112
+45%,Region Islanding 75%,8,offwind,17.527
+45%,Region Islanding 75%,15,onwind,0.038
+45%,Region Islanding 75%,31,offwind,9.367
+45%,Region Islanding 75%,28,OCGT,0.448
+45%,Region Islanding 75%,13,solar,1.064
+45%,Region Islanding 75%,11,CCGT,0.224
+45%,Region Islanding 75%,34,OCGT,1.792
+45%,Region Islanding 75%,19,OCGT,0.224
+45%,Region Islanding 75%,10,OCGT,0.448
+45%,Region Islanding 75%,5,solar,1.652
+45%,Region Islanding 75%,23,OCGT,1.12
+45%,Region Islanding 75%,16,offwind,12.036
+45%,Region Islanding 75%,23,solar,2.1
+45%,Region Islanding 75%,11,offwind,0.884
+45%,Region Islanding 75%,12,solar,22.652
+45%,Region Islanding 75%,10,solar,0.924
+45%,Region Islanding 75%,28,solar,1.456
+45%,Region Islanding 75%,22,offwind,6.97
+45%,Region Islanding 75%,11,OCGT,0.448
+45%,Region Islanding 75%,20,solar,5.012
+45%,Region Islanding 25%,33,offwind,2.142
+45%,Region Islanding 25%,4,solar,0.112
+45%,Region Islanding 25%,21,offwind,0.612
+45%,Region Islanding 25%,26,offwind,0.493
+45%,Region Islanding 25%,35,offwind,3.247
+45%,Region Islanding 25%,24,offwind,1.054
+45%,Region Islanding 25%,2,solar,0.112
+45%,Region Islanding 25%,14,offwind,2.907
+45%,Region Islanding 25%,18,solar,3.976
+45%,Region Islanding 25%,4,offwind,3.995
+45%,Region Islanding 25%,25,solar,1.82
+45%,Region Islanding 25%,11,solar,0.364
+45%,Region Islanding 25%,32,solar,11.704
+45%,Region Islanding 25%,28,CCGT,0.672
+45%,Region Islanding 25%,22,solar,62.58
+45%,Region Islanding 25%,29,offwind,4.471
+45%,Region Islanding 25%,10,offwind,0.748
+45%,Region Islanding 25%,8,offwind,20.026
+45%,Region Islanding 25%,31,offwind,9.741
+45%,Region Islanding 25%,28,OCGT,0.224
+45%,Region Islanding 25%,13,solar,0.868
+45%,Region Islanding 25%,11,CCGT,0.448
+45%,Region Islanding 25%,34,OCGT,0.448
+45%,Region Islanding 25%,5,solar,2.94
+45%,Region Islanding 25%,23,OCGT,0.448
+45%,Region Islanding 25%,16,offwind,12.988
+45%,Region Islanding 25%,23,solar,2.156
+45%,Region Islanding 25%,11,offwind,0.544
+45%,Region Islanding 25%,12,solar,33.068
+45%,Region Islanding 25%,10,solar,1.008
+45%,Region Islanding 25%,28,solar,1.204
+45%,Region Islanding 25%,22,offwind,0.187
+45%,Region Islanding 25%,11,OCGT,0.224
+45%,Region Islanding 25%,20,solar,2.772
+45%,SD Weighted Equal,33,offwind,2.261
+45%,SD Weighted Equal,24,offwind,1.768
+45%,SD Weighted Equal,14,offwind,0.068
+45%,SD Weighted Equal,25,OCGT,0.224
+45%,SD Weighted Equal,18,solar,4.536
+45%,SD Weighted Equal,4,offwind,5.423
+45%,SD Weighted Equal,22,solar,53.396
+45%,SD Weighted Equal,29,offwind,9.401
+45%,SD Weighted Equal,10,offwind,0.153
+45%,SD Weighted Equal,8,offwind,16.898
+45%,SD Weighted Equal,31,offwind,11.509
+45%,SD Weighted Equal,28,OCGT,0.224
+45%,SD Weighted Equal,13,solar,0.504
+45%,SD Weighted Equal,14,onwind,0.57
+45%,SD Weighted Equal,17,offwind,1.292
+45%,SD Weighted Equal,23,OCGT,0.224
+45%,SD Weighted Equal,16,offwind,12.886
+45%,SD Weighted Equal,23,solar,3.276
+45%,SD Weighted Equal,12,solar,22.232
+45%,SD Weighted Equal,11,OCGT,0.224
+45%,Region Islanding 100%,15,OCGT,5.6
+45%,Region Islanding 100%,33,OCGT,0.448
+45%,Region Islanding 100%,33,offwind,0.646
+45%,Region Islanding 100%,4,solar,4.312
+45%,Region Islanding 100%,21,offwind,1.003
+45%,Region Islanding 100%,26,offwind,0.493
+45%,Region Islanding 100%,24,solar,1.484
+45%,Region Islanding 100%,35,offwind,3.536
+45%,Region Islanding 100%,24,offwind,0.952
+45%,Region Islanding 100%,2,solar,4.48
+45%,Region Islanding 100%,18,offwind,1.377
+45%,Region Islanding 100%,14,offwind,5.474
+45%,Region Islanding 100%,4,OCGT,2.912
+45%,Region Islanding 100%,18,solar,0.616
+45%,Region Islanding 100%,4,offwind,3.774
+45%,Region Islanding 100%,20,OCGT,0.896
+45%,Region Islanding 100%,25,solar,1.792
+45%,Region Islanding 100%,11,solar,0.952
+45%,Region Islanding 100%,32,solar,11.032
+45%,Region Islanding 100%,28,CCGT,0.896
+45%,Region Islanding 100%,22,solar,51.968
+45%,Region Islanding 100%,29,offwind,4.998
+45%,Region Islanding 100%,15,solar,18.676
+45%,Region Islanding 100%,10,offwind,0.714
+45%,Region Islanding 100%,37,solar,0.42
+45%,Region Islanding 100%,8,offwind,17.306
+45%,Region Islanding 100%,15,onwind,1.9
+45%,Region Islanding 100%,31,offwind,9.248
+45%,Region Islanding 100%,28,OCGT,0.448
+45%,Region Islanding 100%,13,solar,1.064
+45%,Region Islanding 100%,11,CCGT,0.448
+45%,Region Islanding 100%,34,OCGT,2.016
+45%,Region Islanding 100%,19,OCGT,0.224
+45%,Region Islanding 100%,10,OCGT,0.448
+45%,Region Islanding 100%,5,solar,1.316
+45%,Region Islanding 100%,16,onwind,0.038
+45%,Region Islanding 100%,23,OCGT,1.12
+45%,Region Islanding 100%,16,offwind,12.376
+45%,Region Islanding 100%,23,solar,2.128
+45%,Region Islanding 100%,11,offwind,0.595
+45%,Region Islanding 100%,12,solar,20.02
+45%,Region Islanding 100%,10,solar,0.868
+45%,Region Islanding 100%,28,solar,1.568
+45%,Region Islanding 100%,22,offwind,10.421
+45%,Region Islanding 100%,11,OCGT,0.448
+45%,Region Islanding 100%,20,solar,5.208

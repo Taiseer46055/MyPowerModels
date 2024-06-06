@@ -20,6 +20,82 @@ function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, i::Int; nw::Int
     constraint_gen_exp_power_on_off(pm, nw, i, gen["pmin"], gen["pmax"])
 end
 
+function constraint_min_renewable_injection(pm::AbstractPowerModel, re_options::Dict{String, Float64}, carrier_indices)
+    # filter the renewable indices from the carrier indices
+    renewable_carriers = []
+    re_techs = [carrier_indices["onwind"], carrier_indices["offwind"], carrier_indices["solar"]]
+    for tech in re_techs
+        for carrier in tech
+            push!(renewable_carriers, carrier)
+        end
+    end
+    total_renewable_pg_expr = JuMP.@expression(pm.model, 0)
+
+    total_load = sum(ref(pm, n, :weight) * 
+                    sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in ref(pm, n, :load))
+                    for (n, _) in nws(pm))
+   
+    for (n, _) in nws(pm)
+        weight = ref(pm, n, :weight)
+        gen_data = ref(pm, n, :gen)
+
+        for id in keys(gen_data)
+            if gen_data[id]["carrier"] in renewable_carriers
+                JuMP.@expression(pm.model, total_renewable_pg_expr += weight * var(pm, n, :pg)[id])
+            end
+        end
+    end
+
+    constraint_min_renewable_injection(pm, re_options, total_renewable_pg_expr, total_load)
+end
+
+
+function constraint_limit_phs_injection(pm::AbstractPowerModel, carrier_indices)
+
+    turb_carriers = carrier_indices["PHS_turb"]
+    pump_carriers = carrier_indices["PHS_pump"]
+    total_phs_pg_turb_expr = JuMP.@expression(pm.model, 0)
+    total_phs_pg_pump_expr = JuMP.@expression(pm.model, 0)
+    total_load = sum(ref(pm, n, :weight) * 
+                    sum(haskey(load, "pd") ? load["pd"] : 0.0 for (_, load) in ref(pm, n, :load))
+                    for (n, _) in nws(pm))
+
+    for (n, _) in nws(pm)
+        weight = ref(pm, n, :weight)
+        gen_data = ref(pm, n, :gen)
+
+        for id in keys(gen_data)
+            if gen_data[id]["carrier"] in pump_carriers
+                JuMP.@expression(pm.model, total_phs_pg_pump_expr += weight * var(pm, n, :pg)[id])
+            end
+        end
+
+        for id in keys(gen_data)
+            if gen_data[id]["carrier"] in turb_carriers
+                JuMP.@expression(pm.model, total_phs_pg_turb_expr += weight * var(pm, n, :pg)[id])
+            end
+        end
+    end
+
+    constraint_limit_phs_injection(pm, total_phs_pg_pump_expr, total_phs_pg_turb_expr, total_load)
+end
+
+
+function constraint_ohms_yt_from_scaled(pm::AbstractPowerModel, i::Int; nw::Int=nw_id_default)
+    branch = ref(pm, nw, :branch, i)
+    f_bus = branch["f_bus"]
+    t_bus = branch["t_bus"]
+    f_idx = (i, f_bus, t_bus)
+    t_idx = (i, t_bus, f_bus)
+
+    g, b = calc_branch_y(branch)
+    tr, ti = calc_branch_t(branch)
+    g_fr = branch["g_fr"]
+    b_fr = branch["b_fr"]
+    tm = branch["tap"]
+
+    constraint_ohms_yt_from_scaled(pm, nw, f_bus, t_bus, f_idx, t_idx, g, b, g_fr, b_fr, tr, ti, tm)
+end
 
 ################################### End Taiseer Code #########################
 

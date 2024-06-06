@@ -24,7 +24,7 @@ end
 
 ### Data and functions specific to Matpower format ###
 
-const _mp_data_names = ["mpc.version", "mpc.baseMVA", "mpc.bus", "mpc.gen",
+const _mp_data_names = ["mpc.version", "mpc.baseMVA", "mpc.weight", "mpc.bus", "mpc.gen",
     "mpc.branch", "mpc.dcline", "mpc.gencost", "mpc.dclinecost",
     "mpc.bus_name", "mpc.storage", "mpc.switch"
 ]
@@ -56,8 +56,11 @@ const _mp_gen_columns = [
     ("gen_status", Int),
     ("pmax", Float64), ("pmin", Float64),
     ("H", Float64),
-    ("num_blocks", Int),
-    ("state", Int),
+    ("n0",Int),
+    ("nE",Int),
+    ("nE_max",Int),
+    ("P_b_nom", Float64),
+    ("carrier",Int),
     ("investment", Float64),
     ("pc1", Float64),
     ("pc2", Float64),
@@ -154,6 +157,12 @@ function _parse_matpower_string(data_string::String)
     else
         Memento.warn(_LOGGER, string("no baseMVA found in matpower file.  The file seems to be missing \"mpc.baseMVA = ...\""))
         case["baseMVA"] = 1.0
+    end
+
+    if haskey(matlab_data, "mpc.weight")
+        case["weight"] = matlab_data["mpc.weight"]
+    else
+        Memento.warn(_LOGGER, string("no weight found in matpower file.  The file seems to be missing \"mpc.weight = ...\""))
     end
 
 
@@ -714,7 +723,7 @@ end
 "Export power network data in the matpower format"
 function export_matpower(io::IO, data::Dict{String,Any})
     if _IM.ismultinetwork(data)
-        Memento.error(_LOGGER, "export_matpower does not yet support multinetwork data")
+        Memento.error(_LOGGER, "export_matpower does not yet support network data")
     end
 
     data = deepcopy(data)
@@ -787,6 +796,7 @@ function export_matpower(io::IO, data::Dict{String,Any})
     end
 
     mvaBase = data["baseMVA"]
+    weight = data["weight"]
 
     # Print the header information
     println(io, "%% MATPOWER Case Format : Version 2")
@@ -796,6 +806,7 @@ function export_matpower(io::IO, data::Dict{String,Any})
     println(io, "%%-----  Power Flow Data  -----%%")
     println(io, "%% system MVA base")
     println(io, "mpc.baseMVA = ", mvaBase, ";")
+    println(io), "mpc.weight = ", weight, ";"
 
     # Print the bus data
     println(io, "%% bus data")
@@ -872,8 +883,11 @@ function export_matpower(io::IO, data::Dict{String,Any})
             "\t", _get_default(gen, "mu_qmax", ""),
             "\t", _get_default(gen, "mu_qmin", ""),
             "\t", _get_default(gen, "H", ""),
-            "\t", _get_default(gen, "num_blocks", ""),
-            "\t", _get_default(gen, "state", ""),
+            "\t", _get_default(gen, "n0", ""),
+            "\t", _get_default(gen, "nE", ""),
+            "\t", _get_default(gen, "nE_max", ""),
+            "\t", _get_default(gen, "P_b_nom", ""),
+            "\t", _get_default(gen, "carrier", ""),
             "\t", _get_default(gen, "investment", ""),
         )
         i = i+1
@@ -1096,7 +1110,7 @@ function export_matpower(io::IO, data::Dict{String,Any})
 
     # print the extra component data
     for (key, value) in data
-        if key != "bus" && key != "gen" && key != "branch" && key != "load" && key != "shunt" && key != "storage" && key != "dcline" && key != "switch" && key != "ne_branch" && key != "version" && key != "baseMVA" && key != "per_unit" && key != "name" && key != "source_type" && key != "source_version"
+        if key != "bus" && key != "gen" && key != "branch" && key != "load" && key != "shunt" && key != "storage" && key != "dcline" && key != "switch" && key != "ne_branch" && key != "version" && key != "baseMVA" && key != "weight" && key != "per_unit" && key != "name" && key != "source_type" && key != "source_version"
             _export_extra_data(io, data, key)
         end
     end

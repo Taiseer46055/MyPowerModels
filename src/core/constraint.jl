@@ -7,56 +7,66 @@
 ################################### Start Taiseer Code #########################
 
 # constraint for the startup and shutdown of generators
-function constraint_startup_shutdown(pm::AbstractPowerModel,  i::Int64; nw::Int=nw_id_default)
+function constraint_startup_shutdown(pm::AbstractPowerModel, i::Int64; nw::Int, sorted_nws::Vector{Int})
 
     z = var(pm, nw, :z_gen)[i]
+    nE = var(pm, nw, :nE)
 
     current_status = z
-    if nw == 1 && z != 0
-        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == current_status)
-        # JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == 0)
-    end
-    if nw > 1    
+    if nw == first(sorted_nws) && z != 0
+        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] == 0)
+        JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] == 0)
+
+    elseif nw != first(sorted_nws)
+        
         z_prev = var(pm, nw-1, :z_gen)[i]
         previous_status = z_prev
 
         JuMP.@constraint(pm.model, var(pm, nw, :su)[i] >= current_status - previous_status)
-        # JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] >= previous_status - current_status)
+        JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] >= previous_status - current_status)
+        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] >= 0)
+        JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] >= 0)
+        JuMP.@constraint(pm.model, var(pm, nw, :su)[i] <= nE[i])
+        JuMP.@constraint(pm.model, var(pm, nw, :sd)[i] <= nE[i])
+
     end
 
 end
 
-"on/off constraint for generators"
+
 function constraint_gen_exp_power_on_off(pm::AbstractPowerModel, n::Int, i::Int, pmin, pmax)
 
-    pg = var(pm, n, :pg, i)
-    n_a = var(pm, n, :n_a)[i]
-
-    JuMP.@constraint(pm.model, pg <= pmax * n_a)
-    JuMP.@constraint(pm.model, pg >= pmin * n_a)
+    pg = var(pm, n, :pg)
+    z = var(pm, n, :z_gen)
+    JuMP.@constraint(pm.model, pg[i] <= pmax*z[i])
+    JuMP.@constraint(pm.model, pg[i] >= pmin*z[i])
+    
 end
 
-#=
-function constraint_pot_gen_power_on_off(pm::AbstractPowerModel, pot_gens; nw::Int=nw_id_default)
+function constraint_min_renewable_injection(pm::AbstractPowerModel, re_options::Dict{String, Float64}, total_renewable_pg_expr , total_load)
 
-    pg_pot = pm.ext[:pg_pot]
-    qg_pot = pm.ext[:qg_pot]
-    n_a = var(pm, nw, :n_a)
-    
-    for (gen_id, gen_attrs) in pot_gens
-        pmin = gen_attrs["pg_min"]
-        pmax = gen_attrs["pg_max"]
-        qmin = gen_attrs["qg_min"]
-        qmax = gen_attrs["qg_max"]
-
-        JuMP.@constraint(pm.model, pg_pot[gen_id] <= pmax*n_a[gen_id])
-        JuMP.@constraint(pm.model, pg_pot[gen_id] >= pmin*n_a[gen_id])
-        JuMP.@constraint(pm.model, qg_pot[gen_id] <= qmax*n_a[gen_id])
-        JuMP.@constraint(pm.model, qg_pot[gen_id] >= qmin*n_a[gen_id])
+    re_x = re_options["precentage_re_inj"]
+    JuMP.@constraint(pm.model, lam_re_x, total_renewable_pg_expr >= re_x * total_load)
+    if _IM.report_duals(pm)
+        sol(pm, :system)[:lam_re_x] = lam_re_x
     end
 end
 
-=#
+
+function constraint_limit_phs_injection(pm::AbstractPowerModel, total_phs_pg_pump_expr, total_phs_pg_turb_expr, total_load)
+
+    pm.ext[:total_phs_pg_pump_expr] = total_phs_pg_pump_expr
+    pm.ext[:total_phs_pg_turb_expr] = total_phs_pg_turb_expr
+    pm.data["total_phs_pg_pump_expr"] = pm.ext[:total_phs_pg_pump_expr]
+    pm.data["total_phs_pg_turb_expr"] = pm.ext[:total_phs_pg_turb_expr]
+    JuMP.@constraint(pm.model, (-total_phs_pg_pump_expr) <= 0.028 * total_load)
+    JuMP.@constraint(pm.model, total_phs_pg_turb_expr == -0.75 * total_phs_pg_pump_expr)
+
+end
+
+
+
+
 ################################### End Taiseer Code #########################
 
 

@@ -1,0 +1,15 @@
+CCGT,0
+OCGT,1
+offwind,2
+oil,3
+onwind,4
+ror,5
+solar,6
+lignite,7
+biomass,8
+coal,9
+nuclear,10
+geothermal,11
+hydro,12
+PHS_turb,13
+PHS_pump,14

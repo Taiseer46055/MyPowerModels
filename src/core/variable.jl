@@ -10,22 +10,18 @@ function variable_startup_shutdown(pm::AbstractPowerModel; nw::Int=nw_id_default
     if !relax
         su = var(pm, nw)[:su] = JuMP.@variable(pm.model,
             [i in ids(pm, nw, :gen)], base_name="$(nw)_su",
-            binary = true
+            integer = true
         )
         sd = var(pm, nw)[:sd] = JuMP.@variable(pm.model,
             [i in ids(pm, nw, :gen)], base_name="$(nw)_sd",
-            binary = true
+            integer = true
         )
     else
         su = var(pm, nw)[:su] = JuMP.@variable(pm.model,
-            [i in ids(pm, nw, :gen)], base_name="$(nw)_su",
-            lower_bound = 0,
-            upper_bound = 1)
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_su")
         
         sd = var(pm, nw)[:sd] = JuMP.@variable(pm.model,
-            [i in ids(pm, nw, :gen)], base_name="$(nw)_sd",
-            lower_bound = 0,
-            upper_bound = 1
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_sd"
         )
     end
 
@@ -35,6 +31,67 @@ function variable_startup_shutdown(pm::AbstractPowerModel; nw::Int=nw_id_default
     end
 end
 
+function variable_gen_indicator_with_expansion(pm::AbstractPowerModel; nw::Int=nw_id_default, relax::Bool=false, report::Bool=true)
+    if !relax
+        z_gen = var(pm, nw)[:z_gen] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_z_gen",
+            lower_bound = 0,
+            upper_bound = ref(pm, nw, :gen, i)["nE_max"],
+            integer = true,
+            start = comp_start_value(ref(pm, nw, :gen, i), "z_gen_start", ref(pm, nw, :gen, i)["n0"])
+        )
+    else
+        z_gen = var(pm, nw)[:z_gen] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_z_gen",
+            lower_bound = 0,
+            upper_bound = ref(pm, nw, :gen, i)["nE_max"],
+            start = comp_start_value(ref(pm, nw, :gen, i), "z_gen_start", ref(pm, nw, :gen, i)["n0"])
+        )
+    end
+    report && sol_component_value(pm, nw, :gen, :gen_status, ids(pm, nw, :gen), z_gen)
+end
+
+
+function variable_gen_expansion_blocks(pm::AbstractPowerModel; nw::Int=nw_id_default, relax::Bool=false, report::Bool=true)
+    if !relax
+        nE = var(pm, nw)[:nE] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_nE",
+            lower_bound = 0,
+            upper_bound = ref(pm, nw, :gen, i)["nE_max"],
+            integer = true
+        )
+    else
+        nE = var(pm, nw)[:nE] = JuMP.@variable(pm.model,
+            [i in ids(pm, nw, :gen)], base_name="$(nw)_nE",
+            lower_bound = 0,
+            upper_bound = ref(pm, nw, :gen, i)["nE_max"]
+        )
+    end
+    report && sol_component_value(pm, nw, :gen, :nE, ids(pm, nw, :gen), nE)
+end
+    
+function variable_gen_power_real_on_off_with_gen_exp(pm::AbstractPowerModel; nw::Int=nw_id_default, relax::Bool=false, report::Bool=true)
+
+    pg = var(pm, nw)[:pg] = JuMP.@variable(pm.model,
+        [i in ids(pm, nw, :gen)], base_name="$(nw)_pg",
+        start = comp_start_value(ref(pm, nw, :gen, i), "pg_start")
+    )
+
+    report && sol_component_value(pm, nw, :gen, :pg, ids(pm, nw, :gen), pg)
+end
+
+function variable_slack_bus_ineria(pm::AbstractPowerModel; nw::Int=nw_id_default, report::Bool=true)
+
+    E_I_s = var(pm, nw)[:E_I_s] = JuMP.@variable(pm.model,
+    [i in ids(pm, nw, :bus)], base_name="$(nw)_E_I_s",
+    lower_bound = -1,
+    start = 0
+)
+    report && sol_component_value(pm, nw, :bus, :E_I_s, ids(pm, nw, :bus), E_I_s)
+end
+
+
+#=
 function variable_expansion_blocks_global(pm::AbstractPowerModel ;  report::Bool=true)
 
     if !haskey(pm.ext, :n_E)
@@ -100,8 +157,6 @@ function variable_gen_power_on_off_with_gen_exp(pm::AbstractPowerModel; nw::Int=
     end
 end
 
-
-#=
 function variable_gen_power_limits(pm::AbstractPowerModel; nw::Int=nw_id_default)
     gen_data = ref(pm, nw, :gen)
     n_a = var(pm, nw, :n_a)
@@ -119,45 +174,6 @@ function variable_gen_power_limits(pm::AbstractPowerModel; nw::Int=nw_id_default
             gen_data[i]["qmax"] = new_qmax
             gen_data[i]["qmin"] = new_qmin
 
-        end
-    end
-end
-
-
-function variable_pot_gen_power(pm::AbstractPowerModel; kwargs...)
-    variable_pot_gen_power_real(pm, pot_gens; kwargs...)
-    variable_pot_gen_power_imaginary(pm, pot_gens; kwargs...)
-
-end
-
-function variable_pot_gen_power_real(pm::AbstractPowerModel, pot_gens; nw::Int=nw_id_default, bounded::Bool=true)
-
-    pg_pot = JuMP.@variable(pm.model,
-        [gen_id in keys(gen_data)], base_name="$(nw)_pg_pot",
-        start = 0 
-    )
-    pm.ext[:pg_pot] = pg_pot
-
-    if bounded
-        for (gen_id, gen_attrs) in gen_data
-            JuMP.set_lower_bound(pg_pot[gen_id], gen_attrs["pg_min"])
-            JuMP.set_upper_bound(pg_pot[gen_id], gen_attrs["pg_max"])
-        end
-    end
-end
-
-function variable_pot_gen_power_imaginary(pm::AbstractPowerModel, pot_gens; nw::Int=nw_id_default, bounded::Bool=true)
-
-    qg_pot = JuMP.@variable(pm.model,
-        [gen_id in keys(gen_data)], base_name="$(nw)_qg_pot",
-        start = 0 
-    )
-    pm.ext[:qg_pot] = qg_pot
-
-    if bounded
-        for (gen_id, gen_attrs) in gen_data
-            JuMP.set_lower_bound(qg_pot[gen_id], gen_attrs["qg_min"])
-            JuMP.set_upper_bound(qg_pot[gen_id], gen_attrs["qg_max"])
         end
     end
 end
@@ -515,7 +531,7 @@ function variable_gen_indicator(pm::AbstractPowerModel; nw::Int=nw_id_default, r
     if !relax
         z_gen = var(pm, nw)[:z_gen] = JuMP.@variable(pm.model,
             [i in ids(pm, nw, :gen)], base_name="$(nw)_z_gen",
-            binary = true,
+            integer = true,
             start = comp_start_value(ref(pm, nw, :gen, i), "z_gen_start", 1.0)
         )
     else
@@ -528,6 +544,7 @@ function variable_gen_indicator(pm::AbstractPowerModel; nw::Int=nw_id_default, r
     end
 
     report && sol_component_value(pm, nw, :gen, :gen_status, ids(pm, nw, :gen), z_gen)
+
 end
 
 
